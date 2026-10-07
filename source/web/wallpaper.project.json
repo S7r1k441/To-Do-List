@@ -1,0 +1,125 @@
+{
+	"file" : "index.html",
+	"preview" : "preview.jpg",
+	"title" : "TaskBoard (live)",
+	"description" : "Your TaskBoard to-do board as a live wallpaper. Updates within a second of any change in TaskBoard. Click a card to open it, click its circle to check it off.",
+	"type" : "web",
+	"visibility" : "private",
+	"general" :
+	{
+		"properties" :
+		{
+			"schemecolor" :
+			{
+				"order" : 0,
+				"text" : "ui_browse_properties_scheme_color",
+				"type" : "color",
+				"value" : "0.388 0.4 0.945"
+			},
+			"tb_board" :
+			{
+				"order" : 1,
+				"text" : "Board to show (0 = the one open in TaskBoard)",
+				"type" : "slider",
+				"min" : 0,
+				"max" : 9,
+				"value" : 0,
+				"editable" : true
+			},
+			"tb_scale" :
+			{
+				"order" : 2,
+				"text" : "Size (%)",
+				"type" : "slider",
+				"min" : 50,
+				"max" : 200,
+				"value" : 100,
+				"editable" : true
+			},
+			"tb_align" :
+			{
+				"order" : 3,
+				"text" : "Position",
+				"type" : "combo",
+				"value" : "center",
+				"options" :
+				[
+					{ "label" : "Left", "value" : "left" },
+					{ "label" : "Center", "value" : "center" },
+					{ "label" : "Right", "value" : "right" }
+				]
+			},
+			"tb_top" :
+			{
+				"order" : 4,
+				"text" : "Top margin (% of screen)",
+				"type" : "slider",
+				"min" : 0,
+				"max" : 40,
+				"value" : 6,
+				"editable" : true
+			},
+			"tb_bottom" :
+			{
+				"order" : 5,
+				"text" : "Bottom margin (% of screen)",
+				"type" : "slider",
+				"min" : 0,
+				"max" : 40,
+				"value" : 7,
+				"editable" : true
+			},
+			"tb_side" :
+			{
+				"order" : 6,
+				"text" : "Side margin (% of screen, room for desktop icons)",
+				"type" : "slider",
+				"min" : 0,
+				"max" : 40,
+				"value" : 6,
+				"editable" : true
+			},
+			"tb_clock" :
+			{
+				"order" : 7,
+				"text" : "Show clock and date",
+				"type" : "bool",
+				"value" : true
+			},
+			"tb_agenda" :
+			{
+				"order" : 8,
+				"text" : "Show agenda (what's due)",
+				"type" : "bool",
+				"value" : true
+			},
+			"tb_done" :
+			{
+				"order" : 9,
+				"text" : "Show completed cards",
+				"type" : "bool",
+				"value" : true
+			},
+			"tb_bg" :
+			{
+				"order" : 10,
+				"text" : "Background",
+				"type" : "combo",
+				"value" : "app",
+				"options" :
+				[
+					{ "label" : "Same as TaskBoard", "value" : "app" },
+					{ "label" : "Solid color", "value" : "color" }
+				]
+			},
+			"tb_bgcolor" :
+			{
+				"order" : 11,
+				"text" : "Background color",
+				"type" : "color",
+				"value" : "0.07 0.07 0.09",
+				"condition" : "tb_bg.value == 'color'"
+			}
+		}
+	}
+}

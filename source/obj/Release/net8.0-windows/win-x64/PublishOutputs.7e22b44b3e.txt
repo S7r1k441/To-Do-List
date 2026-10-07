@@ -1,0 +1,4 @@
+C:\Users\rvall\Desktop\To Do list\source\publish\Microsoft.Web.WebView2.Core.xml
+C:\Users\rvall\Desktop\To Do list\source\publish\Microsoft.Web.WebView2.WinForms.xml
+C:\Users\rvall\Desktop\To Do list\source\publish\Microsoft.Web.WebView2.Wpf.xml
+C:\Users\rvall\Desktop\To Do list\source\publish\TaskBoard.exe

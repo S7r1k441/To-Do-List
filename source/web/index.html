@@ -1,0 +1,1643 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaskBoard</title>
+<style>
+:root{
+  --accent:#6366f1; --on-accent:#fff;
+  --radius:12px; --col-w:290px; --scale:1;
+  --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+html[data-theme=dark]{
+  color-scheme:dark;
+  --base:#111217; --text:#e9eaf0; --muted:#a0a3b1; --faint:#6c6f7e;
+  --surface:#1b1c23; --surface-2:#23242d; --input:#14151b;
+  --list-bg:rgba(24,25,32,.74); --list-solid:#1c1d24;
+  --card-bg:#2a2b35; --card-hover:#30313c; --topbar:rgba(17,18,23,.55);
+  --border:rgba(255,255,255,.075); --border-strong:rgba(255,255,255,.14);
+  --chip-bg:rgba(255,255,255,.07); --hover:rgba(255,255,255,.06);
+  --shadow:0 1px 1px rgba(0,0,0,.3),0 2px 6px rgba(0,0,0,.18);
+  --shadow-lg:0 24px 70px rgba(0,0,0,.55),0 4px 16px rgba(0,0,0,.3);
+  --overlay:rgba(6,7,11,.62);
+}
+html[data-theme=light]{
+  color-scheme:light;
+  --base:#eceef3; --text:#1b1d26; --muted:#5b6071; --faint:#9499a8;
+  --surface:#ffffff; --surface-2:#f4f5f8; --input:#f4f5f8;
+  --list-bg:rgba(243,244,248,.84); --list-solid:#f1f2f6;
+  --card-bg:#ffffff; --card-hover:#fbfbfe; --topbar:rgba(255,255,255,.6);
+  --border:rgba(20,25,45,.085); --border-strong:rgba(20,25,45,.16);
+  --chip-bg:rgba(20,25,45,.06); --hover:rgba(20,25,45,.05);
+  --shadow:0 1px 1px rgba(20,25,50,.06),0 1px 4px rgba(20,25,50,.07);
+  --shadow-lg:0 24px 70px rgba(20,25,50,.22),0 4px 16px rgba(20,25,50,.1);
+  --overlay:rgba(24,27,40,.36);
+}
+html.no-glass{ --list-bg:var(--list-solid); }
+html.no-glass .list, html.no-glass .topbar{ backdrop-filter:none; }
+
+*{box-sizing:border-box}
+html{font-size:calc(14px * var(--scale))}
+body{
+  margin:0;height:100vh;overflow:hidden;display:flex;flex-direction:column;
+  font-family:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  color:var(--text);background:var(--base);-webkit-font-smoothing:antialiased;
+  user-select:none;
+}
+#bg{position:fixed;inset:0;z-index:-1;background:var(--base);transition:background .3s}
+#bg::after{content:"";position:absolute;inset:0;background:var(--bg-dim,transparent)}
+svg{width:16px;height:16px;flex:none}
+button{font:inherit;color:inherit;cursor:pointer}
+::selection{background:color-mix(in srgb,var(--accent) 40%,transparent)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--text) 18%,transparent);border-radius:99px;border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background-color:color-mix(in srgb,var(--text) 30%,transparent)}
+::-webkit-scrollbar-track{background:transparent}
+input,textarea,select{user-select:text}
+
+/* ---------- Top bar ---------- */
+.topbar{
+  display:flex;align-items:center;gap:10px;padding:10px 16px;
+  background:var(--topbar);backdrop-filter:blur(18px) saturate(1.5);
+  border-bottom:1px solid var(--border);position:relative;z-index:5;
+}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:1.02rem;letter-spacing:-.01em;margin-right:4px}
+.logo{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent),#d946ef 55%));box-shadow:0 2px 8px color-mix(in srgb,var(--accent) 45%,transparent)}
+.logo i{display:flex;gap:2px;align-items:flex-start;height:13px}
+.logo i b{width:4px;border-radius:2px;background:#fff}
+.logo i b:nth-child(1){height:9px}.logo i b:nth-child(2){height:6px;opacity:.85}.logo i b:nth-child(3){height:13px}
+.board-switch{display:flex;align-items:center;gap:6px;background:var(--chip-bg);border:1px solid var(--border);
+  padding:6px 10px 6px 12px;border-radius:9px;font-weight:600;max-width:320px}
+.board-switch:hover{background:var(--hover);border-color:var(--border-strong)}
+.board-switch span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board-switch svg{width:14px;height:14px;opacity:.7}
+.spacer{flex:1}
+.pills{display:flex;gap:6px}
+.pill{border:0;border-radius:99px;padding:5px 11px;font-size:.8rem;font-weight:600;display:flex;align-items:center;gap:6px}
+.pill svg{width:13px;height:13px}
+.pill.red{background:color-mix(in srgb,var(--bad) 18%,transparent);color:color-mix(in srgb,var(--bad) 80%,var(--text))}
+.pill.amber{background:color-mix(in srgb,var(--warn) 20%,transparent);color:color-mix(in srgb,var(--warn) 75%,var(--text))}
+.pill:hover{filter:brightness(1.12)}
+.search{position:relative;display:flex;align-items:center}
+.search svg{position:absolute;left:10px;width:15px;height:15px;color:var(--muted);pointer-events:none}
+.search input{width:220px;padding:7px 28px 7px 32px;border-radius:9px;border:1px solid var(--border);background:var(--chip-bg);color:inherit;font:inherit;outline:none;transition:width .2s var(--ease),border-color .15s}
+.search input:focus{width:280px;border-color:color-mix(in srgb,var(--accent) 70%,transparent);background:var(--input)}
+.search .clear{position:absolute;right:4px;border:0;background:none;color:var(--muted);padding:4px;border-radius:6px;display:none}
+.search.has .clear{display:flex}
+.icon-btn{border:0;background:none;padding:7px;border-radius:8px;display:grid;place-items:center;color:var(--muted);transition:background .12s,color .12s}
+.icon-btn:hover{background:var(--hover);color:var(--text)}
+.icon-btn.sm{padding:4px}
+.icon-btn.sm svg{width:14px;height:14px}
+.tb-btn{border:1px solid var(--border);background:var(--chip-bg);padding:7px 11px;border-radius:9px;display:flex;align-items:center;gap:7px;font-weight:600;font-size:.88rem}
+.tb-btn:hover{background:var(--hover);border-color:var(--border-strong)}
+.tb-btn.active{background:color-mix(in srgb,var(--accent) 22%,transparent);border-color:color-mix(in srgb,var(--accent) 50%,transparent)}
+kbd{font:600 .72rem/1 "Segoe UI",sans-serif;padding:3px 6px;border-radius:5px;background:var(--chip-bg);border:1px solid var(--border);color:var(--muted)}
+
+/* ---------- Board ---------- */
+#main{flex:1;display:flex;min-height:0;position:relative}
+#board{flex:1;display:flex;align-items:flex-start;gap:12px;padding:16px 16px 12px;overflow-x:auto;overflow-y:hidden}
+.list{
+  flex:0 0 var(--col-w);width:var(--col-w);max-height:100%;display:flex;flex-direction:column;
+  background:var(--list-bg);border:1px solid var(--border);border-radius:var(--radius);
+  backdrop-filter:blur(16px) saturate(1.3);box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
+.list::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--list-color,transparent)}
+.list.dragging{display:none}
+.list-head{display:flex;align-items:center;gap:8px;padding:11px 8px 7px 14px;cursor:grab}
+.list-head:active{cursor:grabbing}
+.list-title{flex:1;margin:0;font-size:.95rem;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text;padding:2px 4px;margin-left:-4px;border-radius:6px}
+.list-title:hover{background:var(--hover)}
+.list-title-input{flex:1;font-weight:650;font-size:.95rem;font-family:inherit;color:inherit;background:var(--input);border:1px solid var(--accent);border-radius:6px;padding:2px 6px;outline:none;min-width:0}
+.count{font-size:.74rem;font-weight:600;color:var(--muted);background:var(--chip-bg);padding:1px 8px;border-radius:99px}
+.done-tag{display:grid;place-items:center;color:var(--ok)}
+.done-tag svg{width:14px;height:14px}
+.list-cards{flex:1 1 auto;overflow-y:auto;padding:4px 8px 4px;display:flex;flex-direction:column;gap:8px;min-height:6px}
+.list-empty{font-size:.8rem;color:var(--faint);text-align:center;padding:10px 0 6px;border:1.5px dashed var(--border);border-radius:9px;margin:2px 0}
+.add-card{margin:4px 8px 8px;border:0;background:none;padding:8px 8px;border-radius:9px;display:flex;align-items:center;gap:7px;color:var(--muted);font-weight:500;text-align:left}
+.add-card:hover{background:var(--hover);color:var(--text)}
+.add-list{flex:0 0 var(--col-w);border:1.5px dashed var(--border-strong);background:color-mix(in srgb,var(--list-solid) 35%,transparent);
+  border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:600;backdrop-filter:blur(10px)}
+.add-list:hover{color:var(--text);background:color-mix(in srgb,var(--list-solid) 60%,transparent)}
+.add-list-form{flex:0 0 var(--col-w);background:var(--list-bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px;backdrop-filter:blur(16px)}
+.list-ph{flex:0 0 var(--col-w);border-radius:var(--radius);border:2px dashed color-mix(in srgb,var(--accent) 60%,transparent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+
+/* ---------- Cards ---------- */
+.card{
+  background:var(--card-bg);border:1px solid var(--border);border-radius:calc(var(--radius) - 3px);
+  padding:10px 12px;box-shadow:var(--shadow);cursor:pointer;position:relative;
+  transition:background .12s,border-color .12s,box-shadow .15s,transform .15s var(--ease);
+}
+.card:hover{background:var(--card-hover);border-color:var(--border-strong)}
+.card.dragging{display:none}
+.card.prio-high{box-shadow:inset 3px 0 0 var(--bad),var(--shadow)}
+.card.prio-med{box-shadow:inset 3px 0 0 var(--warn),var(--shadow)}
+.card.prio-low{box-shadow:inset 3px 0 0 #3b82f6,var(--shadow)}
+.card.flash{animation:flash 1.2s var(--ease)}
+@keyframes flash{0%,40%{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent)}}
+.card-ph{border-radius:calc(var(--radius) - 3px);border:2px dashed color-mix(in srgb,var(--accent) 60%,transparent);background:color-mix(in srgb,var(--accent) 10%,transparent);flex:none}
+.card-labels{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px}
+.card-main{display:flex;gap:9px;align-items:flex-start}
+.card-title{flex:1;line-height:1.38;word-break:break-word;white-space:pre-wrap;font-size:.93rem}
+.card.is-done .card-title{text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--text) 40%,transparent);color:var(--muted)}
+.card.is-done{opacity:.78}
+.badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;padding-left:27px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:.74rem;font-weight:500;color:var(--muted);padding:2px 6px;border-radius:6px;background:var(--chip-bg)}
+.badge svg{width:12px;height:12px}
+.badge.overdue{background:color-mix(in srgb,var(--bad) 18%,transparent);color:color-mix(in srgb,var(--bad) 85%,var(--text));font-weight:600}
+.badge.today{background:color-mix(in srgb,var(--warn) 20%,transparent);color:color-mix(in srgb,var(--warn) 80%,var(--text));font-weight:600}
+.badge.soon{background:color-mix(in srgb,var(--accent) 16%,transparent);color:color-mix(in srgb,var(--accent) 70%,var(--text))}
+.badge.done{background:color-mix(in srgb,var(--ok) 18%,transparent);color:color-mix(in srgb,var(--ok) 80%,var(--text))}
+.badge.plain{background:none;padding:2px 3px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:650;padding:2px 9px;border-radius:99px;border:0;
+  background:color-mix(in srgb,var(--c) 20%,transparent);color:color-mix(in srgb,var(--c) 72%,var(--text))}
+.compact .chip{font-size:0;padding:0;width:30px;height:6px}
+.check{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--faint);display:grid;place-items:center;background:none;padding:0;color:transparent;margin-top:1px;transition:all .15s}
+.check svg{width:11px;height:11px}
+.check:hover{border-color:var(--ok);color:color-mix(in srgb,var(--ok) 70%,transparent)}
+.check.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.check.lg{width:24px;height:24px;margin-top:5px}
+.check.lg svg{width:14px;height:14px}
+.check.sm{width:17px;height:17px;border-radius:5px}
+.compact .card{padding:6px 10px}
+.compact .list-cards{gap:5px}
+.compact .badges{margin-top:4px}
+.compact .card-labels{margin-bottom:5px}
+.hidden-done-note{font-size:.75rem;color:var(--faint);padding:2px 12px 0}
+
+/* ---------- Composer ---------- */
+.composer{margin:4px 8px 8px}
+.composer textarea,.add-list-form input{width:100%;resize:none;border:1px solid color-mix(in srgb,var(--accent) 60%,transparent);border-radius:9px;
+  background:var(--card-bg);color:inherit;font:inherit;padding:9px 11px;outline:none;box-shadow:var(--shadow);line-height:1.4}
+.composer .row,.add-list-form .row{display:flex;align-items:center;gap:6px;margin-top:7px}
+.composer .hint,.add-list-form .hint{margin-left:auto;font-size:.72rem;color:var(--faint)}
+
+/* ---------- Buttons & inputs ---------- */
+.btn{border:1px solid var(--border);background:var(--chip-bg);padding:7px 13px;border-radius:9px;display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:.87rem;transition:all .12s}
+.btn:hover{background:var(--hover);border-color:var(--border-strong)}
+.btn.primary{background:var(--accent);border-color:transparent;color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn.danger{color:color-mix(in srgb,var(--bad) 85%,var(--text))}
+.btn.danger:hover{background:color-mix(in srgb,var(--bad) 15%,transparent);border-color:color-mix(in srgb,var(--bad) 40%,transparent)}
+.btn.full{width:100%;justify-content:flex-start}
+.btn svg{width:15px;height:15px}
+.input{font:inherit;color:inherit;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:7px 10px;outline:none;min-width:0;transition:border-color .15s}
+.input:focus{border-color:color-mix(in srgb,var(--accent) 70%,transparent)}
+select.input{cursor:pointer}
+select.input:disabled{opacity:.5;cursor:default}
+input[type=date].input,input[type=time].input{color-scheme:inherit}
+:focus-visible{outline:2px solid color-mix(in srgb,var(--accent) 70%,transparent);outline-offset:1px}
+.input:focus-visible{outline:none}
+
+/* ---------- Overlays / modals ---------- */
+.overlay{position:fixed;inset:0;background:var(--overlay);display:flex;justify-content:center;align-items:flex-start;padding:7vh 16px 16px;overflow:auto;z-index:50;animation:fade .15s ease}
+.modal{width:min(820px,100%);background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-lg);animation:pop .2s var(--ease);user-select:text}
+@keyframes fade{from{opacity:0}}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}}
+.cm-top{display:flex;gap:12px;align-items:flex-start;padding:18px 16px 0 22px}
+.cm-title{flex:1;font-weight:650;font-size:1.3rem;line-height:1.35;font-family:inherit;color:inherit;background:none;border:1px solid transparent;border-radius:8px;padding:3px 7px;margin-left:-7px;resize:none;outline:none;overflow:hidden}
+.cm-title:hover{background:var(--hover)}
+.cm-title:focus{background:var(--input);border-color:color-mix(in srgb,var(--accent) 60%,transparent)}
+.cm-where{padding:2px 22px 0 58px;font-size:.84rem;color:var(--muted)}
+.cm-where b{color:var(--text);font-weight:600}
+.cm-grid{display:grid;grid-template-columns:1fr 250px;gap:24px;padding:18px 22px 22px 58px}
+@media (max-width:760px){.cm-grid{grid-template-columns:1fr;padding-left:22px}}
+.field{margin-bottom:20px}
+.field:last-child{margin-bottom:0}
+.field-label{display:flex;align-items:center;gap:7px;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px}
+.field-label svg{width:14px;height:14px}
+.field-label .muted{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:600}
+.label-pick{display:flex;flex-wrap:wrap;gap:6px}
+.chip.pick{font-size:.8rem;padding:5px 11px;cursor:pointer;opacity:.55;background:color-mix(in srgb,var(--c) 12%,transparent);outline:1.5px solid transparent}
+.chip.pick:hover{opacity:.85}
+.chip.pick.on{opacity:1;background:color-mix(in srgb,var(--c) 26%,transparent);outline-color:color-mix(in srgb,var(--c) 60%,transparent)}
+.chip.ghost{--c:var(--muted);cursor:pointer;font-size:.8rem;padding:5px 10px;background:none;border:1px dashed var(--border-strong)}
+.chip.ghost svg{width:12px;height:12px}
+.cm-desc{width:100%;min-height:110px;resize:vertical;line-height:1.5;display:block}
+.progress{height:6px;border-radius:99px;background:var(--chip-bg);overflow:hidden;margin-bottom:8px}
+.progress div{height:100%;background:var(--ok);border-radius:99px;transition:width .3s var(--ease)}
+.cl-item{display:flex;align-items:center;gap:9px;padding:3px 4px;border-radius:8px}
+.cl-item:hover{background:var(--hover)}
+.cl-item .cl-text{flex:1;border:1px solid transparent;background:none;font:inherit;color:inherit;padding:4px 6px;border-radius:6px;outline:none;min-width:0}
+.cl-item .cl-text:focus{background:var(--input);border-color:color-mix(in srgb,var(--accent) 60%,transparent)}
+.cl-item.done .cl-text{text-decoration:line-through;color:var(--muted)}
+.cl-item .icon-btn{opacity:0}
+.cl-item:hover .icon-btn{opacity:1}
+.cl-add{width:100%;margin-top:6px}
+.row2{display:flex;gap:6px}
+.row2 .input{flex:1}
+.quick{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.quick button{border:1px solid var(--border);background:none;border-radius:7px;padding:3px 8px;font-size:.78rem;color:var(--muted)}
+.quick button:hover{background:var(--hover);color:var(--text)}
+.due-status{margin-top:8px}
+.seg{display:flex;background:var(--input);border:1px solid var(--border);border-radius:9px;padding:3px;gap:2px}
+.seg button{flex:1;border:0;background:none;padding:5px 6px;border-radius:7px;font-size:.82rem;font-weight:600;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:6px}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--surface-2);color:var(--text);box-shadow:var(--shadow)}
+html[data-theme=dark] .seg button.on{background:#34353f}
+.seg .p-high.on{color:var(--bad)}.seg .p-med.on{color:var(--warn)}.seg .p-low.on{color:#3b82f6}
+.side-actions{display:flex;flex-direction:column;gap:6px}
+.hint{font-size:.76rem;color:var(--faint);margin-top:6px}
+.cm-side select.input,.cm-side .row2{width:100%}
+
+/* ---------- Menus ---------- */
+.menu{position:fixed;z-index:80;min-width:220px;max-width:300px;background:var(--surface);border:1px solid var(--border-strong);border-radius:12px;box-shadow:var(--shadow-lg);padding:6px;animation:pop .14s var(--ease)}
+.menu button.mi{width:100%;display:flex;align-items:center;gap:10px;border:0;background:none;padding:7px 10px;border-radius:7px;text-align:left;font-size:.88rem}
+.menu button.mi:hover{background:var(--hover)}
+.menu button.mi svg{width:15px;height:15px;color:var(--muted)}
+.menu button.mi span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu button.mi .tick{flex:none;color:var(--accent)}
+.menu button.mi .tick svg{color:var(--accent)}
+.menu button.danger{color:color-mix(in srgb,var(--bad) 85%,var(--text))}
+.menu button.danger svg{color:inherit}
+.menu hr{border:0;border-top:1px solid var(--border);margin:5px 4px}
+.menu .mh{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);padding:6px 10px 4px}
+.swatches{display:flex;flex-wrap:wrap;gap:6px;padding:4px 10px 8px}
+.sw{width:22px;height:22px;border-radius:50%;border:2px solid transparent;background:var(--c);padding:0;position:relative}
+.sw.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
+.sw.none{background:repeating-linear-gradient(45deg,var(--chip-bg),var(--chip-bg) 3px,transparent 3px,transparent 6px);border-color:var(--border-strong)}
+.sw.none.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--faint)}
+
+/* ---------- Agenda drawer ---------- */
+#agenda{position:absolute;top:0;right:0;bottom:0;width:380px;max-width:92vw;background:var(--surface);border-left:1px solid var(--border);
+  box-shadow:var(--shadow-lg);transform:translateX(105%);transition:transform .25s var(--ease);display:flex;flex-direction:column;z-index:20}
+#agenda.open{transform:none}
+.ag-head{display:flex;align-items:center;gap:10px;padding:16px 16px 10px 20px}
+.ag-head h2{margin:0;font-size:1.1rem;flex:1}
+.ag-body{flex:1;overflow-y:auto;padding:0 12px 20px}
+.ag-group{margin-top:14px}
+.ag-group h3{display:flex;align-items:center;gap:8px;margin:0 8px 6px;font-size:.76rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.ag-group h3 .count{margin-left:auto}
+.ag-group.overdue h3{color:var(--bad)}
+.ag-item{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:10px;cursor:pointer}
+.ag-item:hover{background:var(--hover)}
+.ag-item .ag-t{flex:1;min-width:0}
+.ag-item .ag-title{font-size:.92rem;line-height:1.35;word-break:break-word}
+.ag-item .ag-meta{font-size:.76rem;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag-empty{text-align:center;color:var(--muted);padding:50px 20px}
+.ag-empty .big{font-size:2.4rem;margin-bottom:6px}
+
+/* ---------- Settings ---------- */
+.settings{width:min(860px,100%);display:grid;grid-template-columns:210px 1fr;min-height:540px;overflow:hidden}
+.set-nav{background:var(--surface-2);border-right:1px solid var(--border);padding:18px 10px;display:flex;flex-direction:column;gap:2px}
+html[data-theme=dark] .set-nav{background:#17181e}
+.set-nav h2{font-size:1.05rem;margin:0 10px 12px}
+.set-nav button{display:flex;align-items:center;gap:10px;border:0;background:none;padding:8px 10px;border-radius:8px;text-align:left;font-size:.88rem;font-weight:500;color:var(--muted)}
+.set-nav button:hover{background:var(--hover);color:var(--text)}
+.set-nav button.on{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--text);font-weight:600}
+.set-nav button.on svg{color:var(--accent)}
+.set-nav .ver{margin-top:auto;padding:10px;font-size:.74rem;color:var(--faint)}
+.set-body{padding:22px 26px 26px;overflow-y:auto;max-height:78vh;position:relative}
+.set-body h3{margin:0 0 4px;font-size:1.15rem}
+.set-body .sub{color:var(--muted);font-size:.85rem;margin:0 0 20px}
+.set-row{display:flex;align-items:center;gap:16px;padding:13px 0;border-top:1px solid var(--border)}
+.set-row:first-of-type{border-top:0}
+.set-row .lbl{flex:1}
+.set-row .lbl b{display:block;font-weight:600;font-size:.92rem}
+.set-row .lbl small{display:block;color:var(--muted);font-size:.8rem;margin-top:2px}
+.set-block{padding:13px 0;border-top:1px solid var(--border)}
+.set-block>b{display:block;font-weight:600;font-size:.92rem;margin-bottom:10px}
+.set-close{position:absolute;top:14px;right:14px}
+.switch{position:relative;width:40px;height:22px;flex:none}
+.switch input{opacity:0;width:0;height:0;position:absolute}
+.switch span{position:absolute;inset:0;border-radius:99px;background:var(--border-strong);transition:background .2s;cursor:pointer}
+.switch span::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s var(--ease);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.switch input:checked+span{background:var(--accent)}
+.switch input:checked+span::after{transform:translateX(18px)}
+.switch input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.accents{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+.accents .sw{width:28px;height:28px}
+.color-custom{position:relative;width:28px;height:28px;border-radius:50%;overflow:hidden;border:2px dashed var(--border-strong);display:grid;place-items:center;color:var(--muted)}
+.color-custom input{position:absolute;inset:-8px;opacity:0;cursor:pointer}
+.color-custom svg{width:14px;height:14px}
+.bgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.bg-opt{border:2px solid transparent;border-radius:10px;padding:0;background:none;text-align:left;overflow:hidden;box-shadow:0 0 0 1px var(--border)}
+.bg-opt .pv{height:56px;background-size:cover;background-position:center;display:grid;place-items:center;color:#fff}
+.bg-opt .nm{display:block;font-size:.76rem;font-weight:600;padding:5px 8px;background:var(--surface-2)}
+.bg-opt.on{border-color:var(--accent)}
+.range{display:flex;align-items:center;gap:10px;width:230px}
+.range input{flex:1;accent-color:var(--accent)}
+.range output{width:44px;text-align:right;font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.lbl-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.lbl-row .clr{width:34px;height:34px;border-radius:8px;overflow:hidden;position:relative;flex:none;border:1px solid var(--border)}
+.lbl-row .clr input{position:absolute;inset:-8px;width:60px;height:60px;border:0;padding:0;cursor:pointer}
+.lbl-row .input{flex:1}
+.lbl-row .chip{min-width:70px;justify-content:center}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;align-items:center;font-size:.9rem}
+.keys div:nth-child(odd){display:flex;gap:4px}
+.path{font:.8rem Consolas,monospace;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:8px 10px;word-break:break-all;color:var(--muted)}
+
+/* ---------- Dialog / toast ---------- */
+.dlg{width:min(420px,100%);padding:20px 22px}
+.dlg h3{margin:0 0 6px;font-size:1.08rem}
+.dlg p{margin:0 0 14px;color:var(--muted);font-size:.9rem;line-height:1.45}
+.dlg .input{width:100%;margin:6px 0 16px}
+.dlg-actions{display:flex;justify-content:flex-end;gap:8px}
+#toasts{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;align-items:center;z-index:100;pointer-events:none}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:14px;background:#23242c;color:#f1f2f6;padding:10px 12px 10px 16px;border-radius:11px;box-shadow:0 10px 30px rgba(0,0,0,.35);font-size:.88rem;animation:pop .2s var(--ease);border:1px solid rgba(255,255,255,.08)}
+.toast button{border:0;background:rgba(255,255,255,.1);color:#fff;padding:5px 11px;border-radius:7px;font-weight:600;font-size:.84rem}
+.toast button:hover{background:rgba(255,255,255,.18)}
+.toast.err{background:#5b1d1d}
+.toast.out{opacity:0;transform:translateY(8px);transition:all .2s}
+.empty-board{margin:auto;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+
+<header class="topbar">
+  <div class="brand"><div class="logo"><i><b></b><b></b><b></b></i></div>TaskBoard</div>
+  <button class="board-switch" data-act="board-menu" title="Switch or manage boards"><span id="board-name">…</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+  <div class="spacer"></div>
+  <div class="pills" id="pills"></div>
+  <label class="search" id="search-wrap">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7.5"/><path d="m20.5 20.5-4-4"/></svg>
+    <input id="search" placeholder="Search cards…  ( / )" autocomplete="off" spellcheck="false">
+    <button class="clear" data-act="clear-search" title="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </label>
+  <button class="tb-btn" data-act="agenda" id="agenda-btn" title="Agenda: everything with a due date (A)"></button>
+  <button class="icon-btn" data-act="undo" title="Undo (Ctrl+Z)" id="undo-btn"></button>
+  <button class="icon-btn" data-act="settings" title="Settings" id="settings-btn"></button>
+</header>
+
+<div id="main">
+  <div id="board"></div>
+  <aside id="agenda"></aside>
+</div>
+
+<div id="cm-root"></div>
+<div id="set-root"></div>
+<div id="dlg-root"></div>
+<div id="toasts"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   Utilities & icons
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-5);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const pad2 = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+const ico = (p, sw = 2) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const I = {
+  plus: ico('<path d="M12 5v14M5 12h14"/>'),
+  x: ico('<path d="M18 6 6 18M6 6l12 12"/>'),
+  dots: ico('<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>', 2.4),
+  check: ico('<path d="M20 6 9 17l-5-5"/>', 3.2),
+  tick: ico('<path d="M20 6 9 17l-5-5"/>', 2.5),
+  calendar: ico('<rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/>'),
+  clock: ico('<circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3 2"/>'),
+  bell: ico('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>'),
+  checklist: ico('<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8M13 12h8M13 18h8"/>'),
+  text: ico('<path d="M4 6h16M4 12h16M4 18h10"/>'),
+  tag: ico('<path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor"/>'),
+  trash: ico('<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/>'),
+  copy: ico('<rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'),
+  gear: ico('<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'),
+  sun: ico('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>'),
+  moon: ico('<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>'),
+  monitor: ico('<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>'),
+  board: ico('<rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M9 3v18M15 3v10"/>'),
+  flag: ico('<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>'),
+  image: ico('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>'),
+  download: ico('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>'),
+  upload: ico('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>'),
+  folder: ico('<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>'),
+  agenda: ico('<rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>', 2.2),
+  edit: ico('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
+  arrow: ico('<path d="M5 12h14M12 5l7 7-7 7"/>'),
+  undo: ico('<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
+  sort: ico('<path d="m3 16 4 4 4-4M7 20V4M21 8l-4-4-4 4M17 4v16"/>'),
+  palette: ico('<circle cx="13.5" cy="6.5" r="1.2" fill="currentColor"/><circle cx="17.5" cy="10.5" r="1.2" fill="currentColor"/><circle cx="8.5" cy="7.5" r="1.2" fill="currentColor"/><circle cx="6.5" cy="12.5" r="1.2" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1a1.6 1.6 0 0 1 1.6-1.6h2c3.1 0 5.6-2.5 5.6-5.6C22 6 17.5 2 12 2z"/>'),
+  sliders: ico('<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'),
+  keyboard: ico('<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M18 13h.01M10 13h4M7 17h10"/>'),
+  broom: ico('<path d="m13 11 9-9M14.6 12.6c.8.8.9 2.1.2 3L10 22l-8-8 6.4-4.8c.9-.7 2.2-.6 3 .2Z"/><path d="m6.8 10.4 6.8 6.8"/>'),
+  done: ico('<circle cx="12" cy="12" r="9.5"/><path d="m8 12 3 3 5-6"/>'),
+  sparkle: ico('<path d="M12 3 13.9 8.1 19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>'),
+  win: ico('<path d="M3 5.5 10 4.5v7H3zM12 4.2 21 3v8.5h-9zM3 12.5h7v7l-7-1zM12 12.5h9V21l-9-1.2z"/>', 1.6),
+};
+
+/* =====================================================================
+   Host bridge (C# shell).  Falls back to localStorage in a plain browser.
+   ===================================================================== */
+const host = (() => {
+  const wv = window.chrome && window.chrome.webview;
+  let seq = 0;
+  const pending = new Map(), listeners = {};
+  if (wv) wv.addEventListener('message', e => {
+    const m = e.data;
+    if (m && m.id && pending.has(m.id)) {
+      const { res, rej } = pending.get(m.id);
+      pending.delete(m.id);
+      m.error ? rej(new Error(m.error)) : res(m.result);
+    } else if (m && m.event) (listeners[m.event] || []).forEach(f => f(m.payload));
+  });
+  function fallback(type, payload) {
+    try {
+      switch (type) {
+        case 'init': return { data: localStorage.getItem('tb-data'), prefs: JSON.parse(localStorage.getItem('tb-prefs') || '{"autostart":true,"closeToTray":true,"notifications":true,"dailySummary":true}'), version: 'browser', dataPath: 'Browser localStorage (preview mode)', bgImage: localStorage.getItem('tb-bg') };
+        case 'save': localStorage.setItem('tb-data', JSON.stringify(payload)); return true;
+        case 'setPrefs': localStorage.setItem('tb-prefs', JSON.stringify(payload)); return payload;
+        case 'exportData': { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })); a.download = 'TaskBoard-backup.json'; a.click(); return 'download'; }
+        default: return null;
+      }
+    } catch { return null; }
+  }
+  return {
+    native: !!wv,
+    call(type, payload) {
+      if (!wv) return Promise.resolve(fallback(type, payload));
+      return new Promise((res, rej) => { const id = ++seq; pending.set(id, { res, rej }); wv.postMessage({ id, type, payload }); });
+    },
+    on(ev, f) { (listeners[ev] ||= []).push(f); },
+  };
+})();
+
+/* =====================================================================
+   Data model
+   ===================================================================== */
+const LABEL_COLORS = ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#64748b'];
+const ACCENTS = ['#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#ef4444', '#f97316', '#f59e0b', '#22c55e', '#14b8a6', '#0ea5e9', '#3b82f6', '#64748b'];
+const PRIO = { none: 'None', low: 'Low', med: 'Medium', high: 'High' };
+const PRESETS = {
+  aurora:   { name: 'Aurora',   css: d => `radial-gradient(1100px 650px at 5% -10%, color-mix(in srgb, var(--accent) ${d ? 42 : 30}%, transparent), transparent 62%), radial-gradient(900px 600px at 105% 110%, color-mix(in srgb, #ec4899 ${d ? 26 : 20}%, transparent), transparent 62%), var(--base)` },
+  plain:    { name: 'Plain',    css: () => 'var(--base)' },
+  ocean:    { name: 'Ocean',    css: d => d ? 'linear-gradient(135deg,#0f2027,#203a43 50%,#2c5364)' : 'linear-gradient(135deg,#a1c4fd,#c2e9fb)' },
+  sunset:   { name: 'Sunset',   css: d => d ? 'linear-gradient(135deg,#2a1633,#6b2d5c 55%,#b8494b)' : 'linear-gradient(135deg,#ffecd2,#fcb69f)' },
+  forest:   { name: 'Forest',   css: d => d ? 'linear-gradient(135deg,#0b2420,#163832 50%,#235347)' : 'linear-gradient(135deg,#e3f7c5,#9fdcb0)' },
+  grape:    { name: 'Grape',    css: d => d ? 'linear-gradient(135deg,#170f2e,#35205f 55%,#5b2a86)' : 'linear-gradient(135deg,#e0c3fc,#8ec5fc)' },
+  ember:    { name: 'Ember',    css: d => d ? 'linear-gradient(135deg,#1c1917,#44261a 55%,#7c2d12)' : 'linear-gradient(135deg,#fdfbf7,#f3d9c4)' },
+  slate:    { name: 'Slate',    css: d => d ? 'linear-gradient(160deg,#1e293b,#0f172a)' : 'linear-gradient(160deg,#f8fafc,#cbd5e1)' },
+};
+
+const defaultSettings = () => ({
+  theme: 'dark', accent: '#6366f1', background: { type: 'preset', value: 'aurora' }, bgDim: 0.25,
+  density: 'comfortable', fontScale: 1, columnWidth: 290, radius: 12, glass: true,
+  showDone: true, autoMoveDone: true,
+});
+const defaultLabels = () => [
+  { id: 'lb-urgent', name: 'Urgent', color: '#ef4444' },
+  { id: 'lb-work', name: 'Work', color: '#3b82f6' },
+  { id: 'lb-personal', name: 'Personal', color: '#22c55e' },
+  { id: 'lb-errand', name: 'Errand', color: '#f59e0b' },
+  { id: 'lb-idea', name: 'Idea', color: '#8b5cf6' },
+];
+const newCard = (title, extra = {}) => ({ id: uid(), title, desc: '', due: '', remind: 0, labels: [], checklist: [], priority: 'none', done: false, created: Date.now(), ...extra });
+const newList = (name, extra = {}) => ({ id: uid(), name, color: '', doneList: false, cards: [], ...extra });
+
+function defaultState() {
+  const tomorrow = ymd(addDays(new Date(), 1));
+  const board = {
+    id: uid(), name: 'My Tasks',
+    lists: [
+      newList('To Do', { color: '#6366f1', cards: [
+        newCard('👋 Welcome to TaskBoard — click me!', { labels: ['lb-idea'], desc:
+          'This is your personal to-do board.\n\n' +
+          '• Click “+ Add a card” at the bottom of a list to add a task (press N anywhere).\n' +
+          '• Drag cards between lists, and drag list headers to reorder lists.\n' +
+          '• Click the circle on a card to mark it done — it moves to your Done list.\n' +
+          '• Give a card a due date and Windows will remind you, even when TaskBoard is minimized to the tray.\n' +
+          '• The Agenda button (top right) shows everything that is due, across all boards.\n' +
+          '• Make it yours in Settings ⚙: theme, accent color, background image, layout.\n\n' +
+          'Delete this card whenever you like (Ctrl+Z undoes mistakes).',
+          checklist: [
+            { id: uid(), text: 'Add my first real task', done: false },
+            { id: uid(), text: 'Try dragging a card', done: false },
+            { id: uid(), text: 'Pick a theme in Settings', done: false },
+          ] }),
+        newCard('Set a due date to get a reminder', { due: tomorrow + 'T10:00', labels: ['lb-personal'], priority: 'med' }),
+      ] }),
+      newList('In Progress', { color: '#f59e0b', cards: [
+        newCard('Customize my board', { labels: ['lb-work'] }),
+      ] }),
+      newList('Done', { color: '#22c55e', doneList: true, cards: [
+        newCard('Install TaskBoard', { done: true, completedAt: Date.now() }),
+      ] }),
+    ],
+  };
+  return { version: 1, activeBoard: board.id, boards: [board], labels: defaultLabels(), settings: defaultSettings() };
+}
+
+function normalize(s) {
+  if (!s || typeof s !== 'object') s = {};
+  s.version = 1;
+  if (!Array.isArray(s.boards)) s.boards = [];
+  if (!s.boards.length) s.boards.push({ id: uid(), name: 'My Tasks', lists: [newList('To Do'), newList('In Progress'), newList('Done', { doneList: true, color: '#22c55e' })] });
+  if (!Array.isArray(s.labels)) s.labels = defaultLabels();
+  s.settings = Object.assign(defaultSettings(), s.settings || {});
+  if (!s.settings.background || typeof s.settings.background !== 'object') s.settings.background = { type: 'preset', value: 'aurora' };
+  for (const b of s.boards) {
+    b.id ||= uid(); b.name ||= 'Untitled board';
+    if (!Array.isArray(b.lists)) b.lists = [];
+    for (const l of b.lists) {
+      l.id ||= uid(); l.name ??= 'Untitled'; l.color ||= ''; l.doneList = !!l.doneList;
+      if (!Array.isArray(l.cards)) l.cards = [];
+      for (const c of l.cards) {
+        c.id ||= uid(); c.title ??= ''; c.desc ??= ''; c.due ??= '';
+        if (typeof c.remind !== 'number') c.remind = 0;
+        if (!Array.isArray(c.labels)) c.labels = [];
+        if (!Array.isArray(c.checklist)) c.checklist = [];
+        c.priority ||= 'none'; c.done = !!c.done; c.created ||= Date.now();
+      }
+    }
+  }
+  if (!s.boards.some(b => b.id === s.activeBoard)) s.activeBoard = s.boards[0].id;
+  return s;
+}
+
+let state = null, prefs = {}, appInfo = {}, bgImage = null;
+let past = [], future = [], lastKey = null, lastKeyTime = 0;
+let searchQ = '', composer = null, addingList = false, modalCard = null, agendaOpen = false, settingsTab = null;
+
+const board = () => state.boards.find(b => b.id === state.activeBoard) || state.boards[0];
+const labelById = id => state.labels.find(l => l.id === id);
+function findCard(id) {
+  for (const b of state.boards) for (const l of b.lists) {
+    const i = l.cards.findIndex(c => c.id === id);
+    if (i >= 0) return { board: b, list: l, card: l.cards[i], index: i };
+  }
+  return null;
+}
+function findList(id) {
+  for (const b of state.boards) {
+    const i = b.lists.findIndex(l => l.id === id);
+    if (i >= 0) return { board: b, list: b.lists[i], index: i };
+  }
+  return null;
+}
+
+/* ---------- mutations, undo & saving ---------- */
+function commit(fn, { key = null, render: doRender = true } = {}) {
+  const now = Date.now();
+  if (!(key && key === lastKey && now - lastKeyTime < 2000)) {
+    past.push(JSON.stringify(state));
+    if (past.length > 80) past.shift();
+  }
+  lastKey = key; lastKeyTime = now;
+  future = [];
+  fn(state);
+  scheduleSave();
+  if (doRender) render();
+}
+function undo() {
+  if (!past.length) return toast('Nothing to undo');
+  future.push(JSON.stringify(state));
+  state = normalize(JSON.parse(past.pop()));
+  lastKey = null;
+  afterHistoryJump(); toast('Undone');
+}
+function redo() {
+  if (!future.length) return;
+  past.push(JSON.stringify(state));
+  state = normalize(JSON.parse(future.pop()));
+  lastKey = null;
+  afterHistoryJump(); toast('Redone');
+}
+function afterHistoryJump() {
+  scheduleSave(); applySettings(); render();
+  if (modalCard) { if (findCard(modalCard)) renderCardModal(); else closeCardModal(); }
+  if (settingsTab) renderSettings();
+}
+
+let saveTimer = null, saveFailed = false;
+function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 250); }
+function saveNow() {
+  clearTimeout(saveTimer); saveTimer = null;
+  return host.call('save', state).then(() => {
+    if (saveFailed) { saveFailed = false; toast('Saved ✓'); }
+  }).catch(err => {
+    saveFailed = true;
+    toast('⚠ Could not save: ' + err.message, null, true);
+    saveTimer = setTimeout(saveNow, 5000);
+  });
+}
+window.__flush = () => { clearTimeout(saveTimer); return state; };
+
+function updateSettings(fn, rerender = true) {
+  fn(state.settings);
+  applySettings(); scheduleSave();
+  if (rerender) render();
+}
+
+/* ---------- due dates ---------- */
+function parseDue(s) {
+  const [date, time] = s.split('T');
+  const [y, m, d] = date.split('-').map(Number);
+  const [h, mi] = time ? time.split(':').map(Number) : [0, 0];
+  return new Date(y, m - 1, d, h, mi);
+}
+const hasTime = c => c.due.includes('T');
+const dueEnd = c => { const d = parseDue(c.due); return hasTime(c) ? d : new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59); };
+function dueStatus(c) {
+  if (!c.due) return '';
+  if (c.done) return 'done';
+  const now = new Date(), d = parseDue(c.due);
+  if (dueEnd(c) < now) return 'overdue';
+  if (startOfDay(d).getTime() === startOfDay(now).getTime()) return 'today';
+  if (d - now < 2 * 864e5) return 'soon';
+  return '';
+}
+function dayWord(d) {
+  const today = startOfDay(new Date());
+  const diff = Math.round((startOfDay(d) - today) / 864e5);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff === -1) return 'Yesterday';
+  if (diff > 1 && diff < 7) return d.toLocaleDateString(undefined, { weekday: 'long' });
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+}
+const fmtTime = d => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+function fmtDue(c) {
+  const d = parseDue(c.due);
+  return hasTime(c) ? `${dayWord(d)}, ${fmtTime(d)}` : dayWord(d);
+}
+function remindOptions(timed) {
+  return timed
+    ? [[-1, 'No reminder'], [0, 'At due time'], [5, '5 minutes before'], [15, '15 minutes before'], [30, '30 minutes before'], [60, '1 hour before'], [120, '2 hours before'], [1440, '1 day before']]
+    : [[-1, 'No reminder'], [0, 'Morning of (9:00 AM)'], [1440, 'Day before (9:00 AM)'], [2880, '2 days before'], [10080, '1 week before']];
+}
+function allDueCards() {
+  const out = [];
+  for (const b of state.boards) for (const l of b.lists) for (const c of l.cards)
+    if (c.due && !c.done) out.push({ b, l, c });
+  return out.sort((x, y) => parseDue(x.c.due) - parseDue(y.c.due));
+}
+function dueCounts() {
+  let overdue = 0, today = 0;
+  for (const { c } of allDueCards()) { const s = dueStatus(c); if (s === 'overdue') overdue++; else if (s === 'today') today++; }
+  return { overdue, today };
+}
+
+/* ---------- card operations ---------- */
+function doneListOf(b) { return b.lists.find(l => l.doneList); }
+function toggleDone(id) {
+  commit(() => {
+    const f = findCard(id); if (!f) return;
+    const { card, list, board: b } = f;
+    card.done = !card.done;
+    card.completedAt = card.done ? Date.now() : null;
+    if (state.settings.autoMoveDone) {
+      const dl = doneListOf(b);
+      if (card.done && dl && dl !== list) {
+        list.cards.splice(f.index, 1); dl.cards.unshift(card);
+        card.fromList = list.id;
+      } else if (!card.done && list.doneList) {
+        const back = b.lists.find(l => l.id === card.fromList && !l.doneList) || b.lists.find(l => !l.doneList);
+        if (back) { list.cards.splice(f.index, 1); back.cards.push(card); }
+      }
+    }
+  });
+  if (modalCard === id) renderCardModal();
+  const f = findCard(id);
+  if (f && f.card.done) toast(`Completed “${trunc(f.card.title, 40)}” 🎉`, { label: 'Undo', run: undo });
+}
+function moveCard(id, toListId, toIndex = null) {
+  const src = findCard(id), dst = findList(toListId);
+  if (!src || !dst) return;
+  src.list.cards.splice(src.index, 1);
+  const cards = dst.list.cards;
+  cards.splice(toIndex == null ? cards.length : clamp(toIndex, 0, cards.length), 0, src.card);
+  if (dst.list.doneList && !src.card.done) { src.card.done = true; src.card.completedAt = Date.now(); if (!src.list.doneList) src.card.fromList = src.list.id; }
+  else if (!dst.list.doneList && src.list.doneList && src.card.done) { src.card.done = false; src.card.completedAt = null; }
+}
+function deleteCard(id) {
+  const f = findCard(id); if (!f) return;
+  commit(() => { const g = findCard(id); g.list.cards.splice(g.index, 1); });
+  if (modalCard === id) closeCardModal();
+  toast(`Deleted “${trunc(f.card.title, 40)}”`, { label: 'Undo', run: undo });
+}
+function duplicateCard(id) {
+  let copyId = null;
+  commit(() => {
+    const f = findCard(id); if (!f) return;
+    const copy = JSON.parse(JSON.stringify(f.card));
+    copy.id = copyId = uid(); copy.title += ' (copy)'; copy.created = Date.now();
+    copy.checklist.forEach(i => i.id = uid());
+    f.list.cards.splice(f.index + 1, 0, copy);
+  });
+  return copyId;
+}
+const trunc = (s, n) => (s || '(untitled)').length > n ? s.slice(0, n - 1) + '…' : (s || '(untitled)');
+
+/* =====================================================================
+   Theme / appearance
+   ===================================================================== */
+function luminance(hex) {
+  const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex || '');
+  if (!m) return 0;
+  const [r, g, b] = [m[1], m[2], m[3]].map(x => { const v = parseInt(x, 16) / 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
+  return .2126 * r + .7152 * g + .0722 * b;
+}
+const sysDark = matchMedia('(prefers-color-scheme: dark)');
+const isDark = () => state.settings.theme === 'dark' || (state.settings.theme === 'system' && sysDark.matches);
+function bgCss(bg, dark) {
+  if (bg.type === 'color') return bg.value;
+  if (bg.type === 'image' && bgImage) return `center / cover no-repeat url("${bgImage}"), var(--base)`;
+  return (PRESETS[bg.value] || PRESETS.aurora).css(dark);
+}
+let lastThemeSent = null;
+function applySettings() {
+  const st = state.settings, root = document.documentElement, dark = isDark();
+  root.dataset.theme = dark ? 'dark' : 'light';
+  root.style.setProperty('--accent', st.accent);
+  root.style.setProperty('--on-accent', luminance(st.accent) > .45 ? '#111' : '#fff');
+  root.style.setProperty('--radius', st.radius + 'px');
+  root.style.setProperty('--col-w', st.columnWidth + 'px');
+  root.style.setProperty('--scale', st.fontScale);
+  root.classList.toggle('compact', st.density === 'compact');
+  root.classList.toggle('no-glass', !st.glass);
+  $('#bg').style.background = bgCss(st.background, dark);
+  root.style.setProperty('--bg-dim', st.background.type === 'image' && bgImage ? `rgba(0,0,0,${st.bgDim})` : 'transparent');
+  const key = dark + '';
+  if (key !== lastThemeSent) { lastThemeSent = key; host.call('setTheme', { dark, color: dark ? '#111217' : '#eceef3' }).catch(() => {}); }
+}
+sysDark.addEventListener('change', () => state && applySettings());
+
+/* =====================================================================
+   Rendering: top bar & board
+   ===================================================================== */
+function render() {
+  if (!state) return;
+  renderTop();
+  renderBoard();
+  if (agendaOpen) renderAgenda();
+}
+function renderTop() {
+  $('#board-name').textContent = board().name;
+  const { overdue, today } = dueCounts();
+  $('#pills').innerHTML =
+    (overdue ? `<button class="pill red" data-act="agenda" title="Open agenda">${I.clock}${overdue} overdue</button>` : '') +
+    (today ? `<button class="pill amber" data-act="agenda" title="Open agenda">${I.calendar}${today} due today</button>` : '');
+  $('#agenda-btn').innerHTML = `${I.agenda}<span>Agenda</span>`;
+  $('#agenda-btn').classList.toggle('active', agendaOpen);
+}
+
+function matches(c, q) {
+  if (!q) return true;
+  const hay = [c.title, c.desc, ...c.labels.map(id => labelById(id)?.name || ''), ...c.checklist.map(i => i.text)].join('\n').toLowerCase();
+  return q.split(/\s+/).every(w => hay.includes(w));
+}
+
+function cardHTML(c) {
+  const labels = c.labels.map(labelById).filter(Boolean);
+  const st = dueStatus(c);
+  const cl = c.checklist, clDone = cl.filter(i => i.done).length;
+  const badges = [];
+  if (c.due) badges.push(`<span class="badge ${st}" title="Due ${esc(fmtDue(c))}">${st === 'overdue' ? I.clock : I.calendar}${esc(fmtDue(c))}</span>`);
+  if (c.due && c.remind >= 0 && !c.done) badges.push(`<span class="badge plain" title="Reminder on">${I.bell}</span>`);
+  if (c.desc.trim()) badges.push(`<span class="badge plain" title="Has description">${I.text}</span>`);
+  if (cl.length) badges.push(`<span class="badge ${clDone === cl.length ? 'done' : ''}" title="Checklist">${I.checklist}${clDone}/${cl.length}</span>`);
+  if (c.priority === 'high') badges.push(`<span class="badge overdue" title="High priority">${I.flag}High</span>`);
+  return `<article class="card ${c.done ? 'is-done' : ''} prio-${c.priority}" draggable="true" data-card="${c.id}">
+    ${labels.length ? `<div class="card-labels">${labels.map(l => `<span class="chip" style="--c:${l.color}" title="${esc(l.name)}">${esc(l.name)}</span>`).join('')}</div>` : ''}
+    <div class="card-main"><button class="check ${c.done ? 'on' : ''}" data-act="toggle-done" title="${c.done ? 'Mark not done' : 'Mark complete'}">${I.check}</button><div class="card-title">${esc(c.title) || '<i style="opacity:.5">(untitled)</i>'}</div></div>
+    ${badges.length ? `<div class="badges">${badges.join('')}</div>` : ''}
+  </article>`;
+}
+
+function listHTML(l, q) {
+  const showDone = state.settings.showDone || l.doneList;
+  const visible = l.cards.filter(c => (showDone || !c.done) && matches(c, q));
+  const hiddenDone = !showDone ? l.cards.filter(c => c.done).length : 0;
+  const open = l.cards.filter(c => !c.done).length;
+  const count = l.doneList ? l.cards.length : open;
+  return `<section class="list" data-list="${l.id}" style="--list-color:${l.color || 'transparent'}">
+    <header class="list-head" draggable="true">
+      <h2 class="list-title" data-act="rename-list" title="Click to rename">${esc(l.name)}</h2>
+      ${l.doneList ? `<span class="done-tag" title="Completed list: cards moved here are marked done">${I.done}</span>` : ''}
+      <span class="count" title="${l.doneList ? 'cards' : 'open cards'}">${count}</span>
+      <button class="icon-btn sm" data-act="list-menu" title="List actions">${I.dots}</button>
+    </header>
+    <div class="list-cards" data-list="${l.id}">${visible.map(cardHTML).join('') || (q ? '' : `<div class="list-empty">No cards yet</div>`)}</div>
+    ${hiddenDone ? `<div class="hidden-done-note">${hiddenDone} completed hidden</div>` : ''}
+    ${composer && composer.listId === l.id ? `<div class="composer"><textarea rows="2" placeholder="What needs to be done?">${esc(composer.text)}</textarea>
+      <div class="row"><button class="btn primary" data-act="composer-add">Add card</button><button class="icon-btn" data-act="composer-cancel" title="Cancel (Esc)">${I.x}</button><span class="hint">Enter ↵ to add</span></div></div>`
+      : `<button class="add-card" data-act="add-card">${I.plus}Add a card</button>`}
+  </section>`;
+}
+
+function renderBoard() {
+  const b = board(), el = $('#board');
+  const q = searchQ.trim().toLowerCase();
+  const scrollX = el.scrollLeft, scrolls = {};
+  $$('.list-cards', el).forEach(x => scrolls[x.dataset.list] = x.scrollTop);
+  const composerFocused = document.activeElement && document.activeElement.closest('.composer');
+  el.innerHTML = b.lists.map(l => listHTML(l, q)).join('') +
+    (addingList
+      ? `<div class="add-list-form"><input placeholder="List name…" maxlength="80"><div class="row"><button class="btn primary" data-act="add-list-save">Add list</button><button class="icon-btn" data-act="add-list-cancel">${I.x}</button><span class="hint">Enter ↵</span></div></div>`
+      : `<button class="add-list" data-act="add-list">${I.plus}Add another list</button>`);
+  el.scrollLeft = scrollX;
+  $$('.list-cards', el).forEach(x => { if (scrolls[x.dataset.list] != null) x.scrollTop = scrolls[x.dataset.list]; });
+  if (composer) {
+    const ta = $(`.list[data-list="${composer.listId}"] .composer textarea`);
+    if (ta && (composerFocused || composer.focus)) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); composer.focus = false; autosize(ta); }
+    if (ta) bindComposer(ta);
+  }
+  if (addingList) bindAddList($('.add-list-form input'));
+}
+
+function autosize(ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 2 + 'px'; }
+
+/* ---------- composer (add card) ---------- */
+function openComposer(listId) {
+  composer = { listId, text: '', focus: true };
+  addingList = false;
+  renderBoard();
+  const lc = $(`.list[data-list="${listId}"] .list-cards`);
+  if (lc) lc.scrollTop = lc.scrollHeight;
+}
+function closeComposer() { composer = null; renderBoard(); }
+function submitComposer(keepOpen) {
+  const text = (composer?.text || '').trim();
+  if (!text) { if (!keepOpen) closeComposer(); return; }
+  const listId = composer.listId;
+  composer.text = '';
+  if (keepOpen) composer.focus = true; else composer = null;
+  commit(() => {
+    const f = findList(listId); if (!f) return;
+    const card = newCard(text);
+    if (f.list.doneList) { card.done = true; card.completedAt = Date.now(); }
+    f.list.cards.push(card);
+  });
+  const lc = $(`.list[data-list="${listId}"] .list-cards`);
+  if (lc) lc.scrollTop = lc.scrollHeight;
+}
+function bindComposer(ta) {
+  ta.oninput = () => { composer.text = ta.value; autosize(ta); };
+  ta.onkeydown = e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComposer(true); }
+    else if (e.key === 'Escape') { e.stopPropagation(); closeComposer(); }
+  };
+  ta.onblur = () => setTimeout(() => {
+    if (!composer || document.activeElement === ta) return;
+    if (document.activeElement && document.activeElement.closest('.composer')) return;
+    if (composer.text.trim()) submitComposer(false); else closeComposer();
+  }, 120);
+}
+
+/* ---------- lists ---------- */
+function bindAddList(input) {
+  if (!input) return;
+  input.focus();
+  const save = () => {
+    const name = input.value.trim();
+    if (!name) { addingList = false; renderBoard(); return; }
+    commit(() => board().lists.push(newList(name)));
+    const el = $('#board'); el.scrollLeft = el.scrollWidth;
+    $('.add-list-form input')?.focus();
+  };
+  input.onkeydown = e => {
+    if (e.key === 'Enter') { e.preventDefault(); save(); }
+    else if (e.key === 'Escape') { e.stopPropagation(); addingList = false; renderBoard(); }
+  };
+  input.onblur = () => setTimeout(() => {
+    if (!addingList || document.activeElement?.closest('.add-list-form')) return;
+    if (input.value.trim()) save(); addingList = false; renderBoard();
+  }, 150);
+  $('[data-act="add-list-save"]').onmousedown = e => { e.preventDefault(); save(); };
+}
+function startRenameList(h, listId) {
+  const f = findList(listId); if (!f) return;
+  const head = h.closest('.list-head');
+  head.draggable = false;
+  const input = document.createElement('input');
+  input.className = 'list-title-input'; input.value = f.list.name; input.maxLength = 80;
+  h.replaceWith(input);
+  input.focus(); input.select();
+  let done = false;
+  const finish = save => {
+    if (done) return; done = true;
+    const v = input.value.trim();
+    if (save && v && v !== f.list.name) commit(() => { findList(listId).list.name = v; });
+    else renderBoard();
+  };
+  input.onkeydown = e => { if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') { e.stopPropagation(); finish(false); } };
+  input.onblur = () => finish(true);
+}
+function listMenu(anchor, listId) {
+  const f = findList(listId); if (!f) return;
+  const l = f.list;
+  const colors = ['', ...LABEL_COLORS];
+  openMenu(anchor, [
+    { label: 'Add a card', icon: I.plus, run: () => openComposer(listId) },
+    { label: 'Rename list', icon: I.edit, run: () => { const h = $(`.list[data-list="${listId}"] .list-title`); if (h) startRenameList(h, listId); } },
+    '-',
+    { html: `<div class="mh">List color</div><div class="swatches">${colors.map(c => `<button class="sw ${c ? '' : 'none'} ${l.color === c ? 'on' : ''}" style="--c:${c || 'transparent'}" data-color="${c}" title="${c || 'No color'}"></button>`).join('')}</div>`,
+      onClick: e => { const s = e.target.closest('[data-color]'); if (!s) return false; commit(() => { findList(listId).list.color = s.dataset.color; }); return true; } },
+    '-',
+    { label: 'Completed list', icon: I.done, checked: l.doneList, hint: 'Cards moved here are marked done',
+      run: () => commit(() => { const b = findList(listId).board; const on = !l.doneList; b.lists.forEach(x => x.doneList = false); findList(listId).list.doneList = on; }) },
+    { label: 'Sort by due date', icon: I.sort, run: () => commit(() => {
+        const cards = findList(listId).list.cards;
+        cards.sort((a, b) => (a.done - b.done) || ((a.due ? 0 : 1) - (b.due ? 0 : 1)) || (a.due && b.due ? parseDue(a.due) - parseDue(b.due) : 0));
+      }) },
+    { label: 'Sort by priority', icon: I.flag, run: () => commit(() => {
+        const rank = { high: 0, med: 1, low: 2, none: 3 };
+        findList(listId).list.cards.sort((a, b) => (a.done - b.done) || rank[a.priority] - rank[b.priority]);
+      }) },
+    { label: 'Clear completed cards', icon: I.broom, run: () => {
+        const n = l.cards.filter(c => c.done).length;
+        if (!n) return toast('No completed cards in this list');
+        commit(() => { const x = findList(listId).list; x.cards = x.cards.filter(c => !c.done); });
+        toast(`Removed ${n} completed card${n > 1 ? 's' : ''}`, { label: 'Undo', run: undo });
+      } },
+    '-',
+    { label: 'Delete list', icon: I.trash, danger: true, run: async () => {
+        if (l.cards.length && !(await confirmDlg(`Delete “${l.name}”?`, `This list and its ${l.cards.length} card${l.cards.length > 1 ? 's' : ''} will be deleted. You can undo with Ctrl+Z.`))) return;
+        commit(() => { const g = findList(listId); g.board.lists.splice(g.index, 1); });
+        toast(`Deleted list “${trunc(l.name, 30)}”`, { label: 'Undo', run: undo });
+      } },
+  ]);
+}
+
+/* ---------- boards ---------- */
+function boardMenu(anchor) {
+  const items = [{ html: '<div class="mh">Boards</div>' }];
+  for (const b of state.boards) items.push({
+    label: b.name, icon: I.board, checked: b.id === state.activeBoard,
+    run: () => switchBoard(b.id),
+  });
+  items.push('-',
+    { label: 'New board', icon: I.plus, run: async () => {
+        const name = await promptDlg('New board', '', { placeholder: 'e.g. Work, Home, Groceries…', ok: 'Create' });
+        if (!name) return;
+        commit(s => {
+          const b = { id: uid(), name, lists: [newList('To Do'), newList('In Progress'), newList('Done', { doneList: true, color: '#22c55e' })] };
+          s.boards.push(b); s.activeBoard = b.id;
+        });
+      } },
+    { label: 'Rename board', icon: I.edit, run: async () => {
+        const name = await promptDlg('Rename board', board().name);
+        if (name) commit(() => { board().name = name; });
+      } },
+  );
+  if (state.boards.length > 1) items.push({ label: 'Delete board', icon: I.trash, danger: true, run: async () => {
+    const b = board(), n = b.lists.reduce((a, l) => a + l.cards.length, 0);
+    if (!(await confirmDlg(`Delete board “${b.name}”?`, `All ${b.lists.length} lists and ${n} cards on it will be deleted. You can undo with Ctrl+Z.`))) return;
+    commit(s => { s.boards = s.boards.filter(x => x.id !== b.id); s.activeBoard = s.boards[0].id; });
+    toast(`Deleted board “${trunc(b.name, 30)}”`, { label: 'Undo', run: undo });
+  } });
+  openMenu(anchor, items);
+}
+function switchBoard(id) {
+  state.activeBoard = id; composer = null; addingList = false;
+  scheduleSave(); render();
+  $('#board').scrollLeft = 0;
+}
+
+/* =====================================================================
+   Drag & drop
+   ===================================================================== */
+let drag = null;
+const ph = document.createElement('div');
+document.addEventListener('dragstart', e => {
+  const card = e.target.closest && e.target.closest('.card');
+  const head = e.target.closest && e.target.closest('.list-head');
+  if (card && !e.target.closest('#agenda')) {
+    drag = { type: 'card', id: card.dataset.card, el: card };
+    ph.className = 'card-ph'; ph.style.height = card.offsetHeight + 'px';
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', card.querySelector('.card-title').textContent);
+    requestAnimationFrame(() => { card.after(ph); card.classList.add('dragging'); });
+  } else if (head && head.draggable) {
+    const list = head.closest('.list');
+    drag = { type: 'list', id: list.dataset.list, el: list };
+    ph.className = 'list-ph'; ph.style.height = list.offsetHeight + 'px';
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', '');
+    e.dataTransfer.setDragImage(list, 40, 20);
+    requestAnimationFrame(() => { list.after(ph); list.classList.add('dragging'); });
+  } else if (!e.target.closest || !e.target.closest('input,textarea')) {
+    e.preventDefault();
+  }
+});
+document.addEventListener('dragover', e => {
+  if (!drag) return;
+  if (drag.type === 'card') {
+    const listEl = e.target.closest && e.target.closest('.list');
+    if (!listEl) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    const box = listEl.querySelector('.list-cards');
+    const after = $$('.card:not(.dragging)', box).find(c => { const r = c.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
+    box.querySelector('.list-empty')?.remove();
+    if (after) { if (ph.nextSibling !== after) box.insertBefore(ph, after); }
+    else if (box.lastElementChild !== ph) box.appendChild(ph);
+  } else {
+    const boardEl = $('#board');
+    if (!boardEl.contains(e.target) && e.target !== boardEl) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    const after = $$('.list:not(.dragging)', boardEl).find(l => { const r = l.getBoundingClientRect(); return e.clientX < r.left + r.width / 2; });
+    const target = after || boardEl.querySelector('.add-list, .add-list-form');
+    if (ph.nextSibling !== target) boardEl.insertBefore(ph, target);
+  }
+});
+document.addEventListener('drop', e => {
+  if (!drag || !ph.parentNode) return;
+  e.preventDefault();
+  const d = drag;
+  if (d.type === 'card') {
+    const box = ph.parentNode, toList = box.dataset.list;
+    const before = [...box.children].slice(0, [...box.children].indexOf(ph)).filter(x => x.classList.contains('card') && !x.classList.contains('dragging'));
+    const prevId = before.length ? before[before.length - 1].dataset.card : null;
+    commit(() => {
+      const dst = findList(toList); if (!dst) return;
+      const cards = dst.list.cards.filter(c => c.id !== d.id);
+      const idx = prevId ? cards.findIndex(c => c.id === prevId) + 1 : 0;
+      moveCard(d.id, toList, idx);
+    });
+  } else {
+    const boardEl = $('#board');
+    const idx = [...boardEl.children].filter(x => x === ph || (x.classList.contains('list') && !x.classList.contains('dragging'))).indexOf(ph);
+    commit(() => {
+      const lists = board().lists, from = lists.findIndex(l => l.id === d.id);
+      const [l] = lists.splice(from, 1);
+      lists.splice(idx, 0, l);
+    });
+  }
+  drag = null;
+});
+document.addEventListener('dragend', () => {
+  if (!drag) return;
+  drag.el.classList.remove('dragging');
+  ph.remove(); drag = null;
+  renderBoard();
+});
+
+/* =====================================================================
+   Menus, dialogs, toasts
+   ===================================================================== */
+let menuEl = null;
+function openMenu(anchor, items) {
+  closeMenu();
+  const m = document.createElement('div');
+  m.className = 'menu';
+  m.innerHTML = items.map((it, i) => it === '-' ? '<hr>' : it.html ? `<div data-i="${i}">${it.html}</div>` :
+    `<button class="mi ${it.danger ? 'danger' : ''}" data-i="${i}" ${it.hint ? `title="${esc(it.hint)}"` : ''}>${it.icon || ''}<span>${esc(it.label)}</span>${it.checked != null ? `<span class="tick">${it.checked ? I.tick : ''}</span>` : ''}</button>`).join('');
+  document.body.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  let left = Math.min(r.left, innerWidth - m.offsetWidth - 8), top = r.bottom + 6;
+  if (top + m.offsetHeight > innerHeight - 8) top = Math.max(8, r.top - m.offsetHeight - 6);
+  m.style.left = Math.max(8, left) + 'px'; m.style.top = top + 'px';
+  m.addEventListener('click', e => {
+    const el = e.target.closest('[data-i]'); if (!el) return;
+    const it = items[el.dataset.i];
+    if (it.onClick) { if (it.onClick(e)) closeMenu(); return; }
+    closeMenu(); it.run && it.run();
+  });
+  menuEl = m;
+}
+function closeMenu() { if (menuEl) { menuEl.remove(); menuEl = null; } }
+document.addEventListener('mousedown', e => { if (menuEl && !menuEl.contains(e.target)) closeMenu(); }, true);
+
+function dialog(html, setup) {
+  return new Promise(resolve => {
+    const root = $('#dlg-root');
+    root.innerHTML = `<div class="overlay" data-overlay><div class="modal dlg" role="dialog">${html}</div></div>`;
+    const done = v => { root.innerHTML = ''; root.onkeydown = null; resolve(v); };
+    root.querySelector('[data-overlay]').addEventListener('mousedown', e => { if (e.target.dataset.overlay != null) done(null); });
+    root.onclick = e => { const b = e.target.closest('[data-d]'); if (b) done(b.dataset.d === 'ok' ? setup.value() : null); };
+    root.onkeydown = e => {
+      if (e.key === 'Escape') { e.stopPropagation(); done(null); }
+      else if (e.key === 'Enter') { e.preventDefault(); done(setup.value()); }
+    };
+    setup.focus(root);
+  });
+}
+function promptDlg(title, value = '', { ok = 'Save', placeholder = '' } = {}) {
+  return dialog(`<h3>${esc(title)}</h3><input class="input" maxlength="80" value="${esc(value)}" placeholder="${esc(placeholder)}">
+    <div class="dlg-actions"><button class="btn" data-d="cancel">Cancel</button><button class="btn primary" data-d="ok">${esc(ok)}</button></div>`, {
+    focus: r => { const i = r.querySelector('input'); i.focus(); i.select(); },
+    value: () => $('#dlg-root input')?.value.trim() || null,
+  });
+}
+function confirmDlg(title, msg, ok = 'Delete') {
+  return dialog(`<h3>${esc(title)}</h3><p>${esc(msg)}</p>
+    <div class="dlg-actions"><button class="btn" data-d="cancel">Cancel</button><button class="btn primary" data-d="ok" style="background:var(--bad);color:#fff">${esc(ok)}</button></div>`, {
+    focus: r => r.querySelector('[data-d=ok]').focus(),
+    value: () => true,
+  });
+}
+function toast(msg, action = null, isError = false) {
+  const box = $('#toasts');
+  while (box.children.length > 2) box.firstChild.remove();
+  const t = document.createElement('div');
+  t.className = 'toast' + (isError ? ' err' : '');
+  t.innerHTML = `<span>${esc(msg)}</span>${action ? `<button>${esc(action.label)}</button>` : ''}`;
+  if (action) t.querySelector('button').onclick = () => { t.remove(); action.run(); };
+  box.appendChild(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 250); }, action ? 6000 : 2600);
+}
+
+/* =====================================================================
+   Card detail modal
+   ===================================================================== */
+function openCard(id) {
+  if (!findCard(id)) return;
+  closeMenu();
+  modalCard = id;
+  renderCardModal();
+  const ta = $('#cm-root .cm-title');
+  if (ta && !ta.value) ta.focus();
+}
+function closeCardModal() {
+  modalCard = null;
+  $('#cm-root').innerHTML = '';
+}
+function renderCardModal() {
+  const f = findCard(modalCard);
+  if (!f) return closeCardModal();
+  const { card: c, list: l, board: b } = f;
+  const [dDate, dTime = ''] = c.due ? c.due.split('T') : ['', ''];
+  const cl = c.checklist, clDone = cl.filter(x => x.done).length;
+  const opts = remindOptions(!!dTime);
+  if (!opts.some(o => o[0] === c.remind)) opts.push([c.remind, `${c.remind} minutes before`]);
+  const st = dueStatus(c);
+  const active = document.activeElement;
+  const focusSel = active && $('#cm-root').contains(active) ? (active.dataset.f ? `[data-f="${active.dataset.f}"]` : active.classList.contains('cl-add') ? '.cl-add' : null) : null;
+  const scrollTop = $('#cm-root .overlay')?.scrollTop || 0;
+
+  $('#cm-root').innerHTML = `<div class="overlay" data-overlay><div class="modal" role="dialog">
+    <div class="cm-top">
+      <button class="check lg ${c.done ? 'on' : ''}" data-m="done" title="${c.done ? 'Mark not done' : 'Mark complete'}">${I.check}</button>
+      <textarea class="cm-title" rows="1" data-f="title" placeholder="Card title" maxlength="500">${esc(c.title)}</textarea>
+      <button class="icon-btn" data-m="close" title="Close (Esc)">${I.x}</button>
+    </div>
+    <div class="cm-where">in list <b>${esc(l.name)}</b>${state.boards.length > 1 ? ` on <b>${esc(b.name)}</b>` : ''}${c.done ? ' · <span style="color:var(--ok)">Completed</span>' : ''}</div>
+    <div class="cm-grid">
+      <div class="cm-main">
+        <div class="field">
+          <div class="field-label">${I.tag}Labels</div>
+          <div class="label-pick">${state.labels.map(lb => `<button class="chip pick ${c.labels.includes(lb.id) ? 'on' : ''}" style="--c:${lb.color}" data-m="label" data-id="${lb.id}">${esc(lb.name)}</button>`).join('')}
+            <button class="chip ghost" data-m="edit-labels">${I.edit}Edit labels</button></div>
+        </div>
+        <div class="field">
+          <div class="field-label">${I.text}Description</div>
+          <textarea class="input cm-desc" data-f="desc" placeholder="Add more details, notes, links…">${esc(c.desc)}</textarea>
+        </div>
+        <div class="field">
+          <div class="field-label">${I.checklist}Checklist${cl.length ? `<span class="muted">${clDone}/${cl.length}</span>` : ''}</div>
+          ${cl.length ? `<div class="progress"><div style="width:${Math.round(clDone / cl.length * 100)}%"></div></div>` : ''}
+          <div class="cl-items">${cl.map(it => `<div class="cl-item ${it.done ? 'done' : ''}" data-id="${it.id}">
+            <button class="check sm ${it.done ? 'on' : ''}" data-m="cl-toggle">${I.check}</button>
+            <input class="cl-text" value="${esc(it.text)}" data-cl="${it.id}" maxlength="300">
+            <button class="icon-btn sm" data-m="cl-del" title="Remove item">${I.x}</button></div>`).join('')}</div>
+          <input class="input cl-add" placeholder="+ Add an item (Enter)" maxlength="300">
+        </div>
+      </div>
+      <aside class="cm-side">
+        <div class="field">
+          <div class="field-label">${I.calendar}Due date</div>
+          <div class="row2"><input type="date" class="input" data-f="date" value="${dDate}"><input type="time" class="input" data-f="time" value="${dTime}" style="max-width:110px"></div>
+          <div class="quick"><button data-m="due" data-v="0">Today</button><button data-m="due" data-v="1">Tomorrow</button><button data-m="due" data-v="7">Next week</button>${c.due ? '<button data-m="due" data-v="clear">Clear</button>' : ''}</div>
+          ${c.due ? `<div class="due-status"><span class="badge ${st}">${st === 'overdue' ? I.clock : I.calendar}${esc(fmtDue(c))}${st === 'overdue' ? ' · overdue' : ''}</span></div>` : ''}
+        </div>
+        <div class="field">
+          <div class="field-label">${I.bell}Reminder</div>
+          <select class="input" data-f="remind" ${c.due ? '' : 'disabled'} style="width:100%">${opts.map(([v, t]) => `<option value="${v}" ${v === c.remind ? 'selected' : ''}>${t}</option>`).join('')}</select>
+          <div class="hint">${c.due ? (prefs.notifications === false ? 'Notifications are turned off in Settings.' : 'A Windows notification will pop up.') : 'Set a due date to get reminded.'}</div>
+        </div>
+        <div class="field">
+          <div class="field-label">${I.flag}Priority</div>
+          <div class="seg">${Object.keys(PRIO).map(p => `<button data-m="prio" data-p="${p}" class="p-${p} ${c.priority === p ? 'on' : ''}">${p === 'med' ? 'Med' : PRIO[p]}</button>`).join('')}</div>
+        </div>
+        <div class="field">
+          <div class="field-label">${I.arrow}Move to</div>
+          <select class="input" data-f="move" style="width:100%">${state.boards.map(bb => `<optgroup label="${esc(bb.name)}">${bb.lists.map(ll => `<option value="${ll.id}" ${ll.id === l.id ? 'selected' : ''}>${esc(ll.name)}</option>`).join('')}</optgroup>`).join('')}</select>
+        </div>
+        <div class="field side-actions">
+          <button class="btn full" data-m="dup">${I.copy}Duplicate</button>
+          <button class="btn full danger" data-m="del">${I.trash}Delete card</button>
+          <div class="hint">Created ${new Date(c.created).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}${c.completedAt && c.done ? ` · done ${new Date(c.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}</div>
+        </div>
+      </aside>
+    </div>
+  </div></div>`;
+  const root = $('#cm-root');
+  root.querySelector('.overlay').scrollTop = scrollTop;
+  autosize(root.querySelector('.cm-title'));
+  const desc = root.querySelector('.cm-desc');
+  desc.style.height = Math.max(110, Math.min(desc.scrollHeight + 2, 420)) + 'px';
+  if (focusSel) root.querySelector(focusSel)?.focus();
+}
+
+let dueDirty = false;
+(function bindCardModal() {
+  const root = $('#cm-root');
+  const cur = () => findCard(modalCard);
+  root.addEventListener('mousedown', e => { if (e.target.dataset && e.target.dataset.overlay != null) closeCardModal(); });
+  root.addEventListener('click', e => {
+    const b = e.target.closest('[data-m]'); if (!b) return;
+    const f = cur(); if (!f) return;
+    const id = modalCard;
+    switch (b.dataset.m) {
+      case 'close': closeCardModal(); break;
+      case 'done': toggleDone(id); break;
+      case 'label': commit(() => { const c = cur().card, lid = b.dataset.id; c.labels = c.labels.includes(lid) ? c.labels.filter(x => x !== lid) : [...c.labels, lid]; }); renderCardModal(); break;
+      case 'edit-labels': openSettings('labels'); break;
+      case 'cl-toggle': { const itId = b.closest('.cl-item').dataset.id; commit(() => { const it = cur().card.checklist.find(x => x.id === itId); if (it) it.done = !it.done; }); renderCardModal(); break; }
+      case 'cl-del': { const itId = b.closest('.cl-item').dataset.id; commit(() => { const c = cur().card; c.checklist = c.checklist.filter(x => x.id !== itId); }); renderCardModal(); break; }
+      case 'due': {
+        const v = b.dataset.v;
+        commit(() => {
+          const c = cur().card;
+          if (v === 'clear') { c.due = ''; return; }
+          const time = c.due.includes('T') ? c.due.split('T')[1] : '';
+          const d = ymd(addDays(new Date(), +v));
+          c.due = time ? `${d}T${time}` : d;
+        });
+        renderCardModal(); break;
+      }
+      case 'prio': commit(() => { cur().card.priority = b.dataset.p; }); renderCardModal(); break;
+      case 'dup': { const nid = duplicateCard(id); if (nid) { openCard(nid); toast('Card duplicated'); } break; }
+      case 'del': deleteCard(id); break;
+    }
+  });
+  root.addEventListener('input', e => {
+    const t = e.target, f = cur(); if (!f) return;
+    if (t.dataset.f === 'title') { autosize(t); commit(() => { cur().card.title = t.value; }, { key: 'title' + modalCard }); }
+    else if (t.dataset.f === 'desc') commit(() => { cur().card.desc = t.value; }, { key: 'desc' + modalCard });
+    else if (t.dataset.cl) commit(() => { const it = cur().card.checklist.find(x => x.id === t.dataset.cl); if (it) it.text = t.value; }, { key: 'cl' + t.dataset.cl });
+  });
+  root.addEventListener('change', e => {
+    const t = e.target, f = cur(); if (!f) return;
+    if (t.dataset.f === 'date' || t.dataset.f === 'time') {
+      const date = $('[data-f=date]', root).value, time = $('[data-f=time]', root).value;
+      commit(() => {
+        const c = cur().card;
+        const d = date || (time ? ymd(new Date()) : '');
+        c.due = d ? (time ? `${d}T${time}` : d) : '';
+      }, { key: 'due' + modalCard });
+      // Re-rendering while the user is still typing into the date field would reset the caret; wait for focusout.
+      dueDirty = true;
+    } else if (t.dataset.f === 'remind') {
+      commit(() => { cur().card.remind = +t.value; }); renderCardModal();
+    } else if (t.dataset.f === 'move') {
+      const to = t.value;
+      commit(() => moveCard(modalCard, to, findList(to).list.doneList ? 0 : null));
+      const nb = findList(to).board;
+      if (nb.id !== state.activeBoard) switchBoard(nb.id);
+      renderCardModal(); toast('Card moved');
+    }
+  });
+  root.addEventListener('focusout', e => {
+    if (!dueDirty || !(e.target.dataset.f === 'date' || e.target.dataset.f === 'time')) return;
+    setTimeout(() => {
+      const a = document.activeElement;
+      if (!dueDirty || !modalCard || (a && (a.dataset.f === 'date' || a.dataset.f === 'time'))) return;
+      dueDirty = false; renderCardModal();
+    }, 0);
+  });
+  root.addEventListener('keydown', e => {
+    const t = e.target;
+    if ((t.dataset.f === 'date' || t.dataset.f === 'time') && e.key === 'Enter') { e.preventDefault(); t.blur(); }
+    else if (t.dataset.f === 'title' && e.key === 'Enter') { e.preventDefault(); t.blur(); }
+    else if (t.classList.contains('cl-add') && e.key === 'Enter') {
+      e.preventDefault();
+      const text = t.value.trim(); if (!text) return;
+      commit(() => { cur().card.checklist.push({ id: uid(), text, done: false }); });
+      renderCardModal();
+      $('#cm-root .cl-add')?.focus();
+    } else if (t.dataset.cl && e.key === 'Enter') { e.preventDefault(); $('#cm-root .cl-add')?.focus(); }
+  });
+})();
+
+/* =====================================================================
+   Agenda
+   ===================================================================== */
+function toggleAgenda(force) {
+  agendaOpen = force ?? !agendaOpen;
+  $('#agenda').classList.toggle('open', agendaOpen);
+  renderTop();
+  if (agendaOpen) renderAgenda();
+}
+function renderAgenda() {
+  const now = new Date(), today = startOfDay(now);
+  const groups = [['overdue', 'Overdue', []], ['today', 'Today', []], ['tomorrow', 'Tomorrow', []], ['week', 'Next 7 days', []], ['later', 'Later', []]];
+  const g = Object.fromEntries(groups.map(x => [x[0], x[2]]));
+  for (const it of allDueCards()) {
+    const d = parseDue(it.c.due), diff = Math.round((startOfDay(d) - today) / 864e5);
+    if (dueEnd(it.c) < now) g.overdue.push(it);
+    else if (diff === 0) g.today.push(it);
+    else if (diff === 1) g.tomorrow.push(it);
+    else if (diff < 8) g.week.push(it);
+    else g.later.push(it);
+  }
+  const multi = state.boards.length > 1;
+  const body = groups.filter(x => x[2].length).map(([k, name, items]) => `<div class="ag-group ${k}"><h3>${name}<span class="count">${items.length}</span></h3>
+    ${items.map(({ b, l, c }) => `<div class="ag-item" data-card="${c.id}"><button class="check" data-act="toggle-done" title="Mark complete">${I.check}</button>
+      <div class="ag-t"><div class="ag-title">${esc(c.title) || '(untitled)'}</div><div class="ag-meta">${esc(multi ? b.name + ' › ' : '')}${esc(l.name)}</div></div>
+      <span class="badge ${dueStatus(c)}">${esc(k === 'today' || k === 'tomorrow' ? (hasTime(c) ? fmtTime(parseDue(c.due)) : 'All day') : fmtDue(c))}</span></div>`).join('')}</div>`).join('');
+  $('#agenda').innerHTML = `<div class="ag-head"><h2>Agenda</h2><button class="icon-btn" data-act="agenda-close" title="Close (Esc)">${I.x}</button></div>
+    <div class="ag-body">${body || `<div class="ag-empty"><div class="big">🌤️</div><b>Nothing scheduled</b><br><small>Give cards a due date and they'll show up here.</small></div>`}</div>`;
+}
+
+/* =====================================================================
+   Settings
+   ===================================================================== */
+const TABS = [
+  ['appearance', 'Appearance', I.palette],
+  ['layout', 'Layout', I.sliders],
+  ['windows', 'Windows & reminders', I.bell],
+  ['labels', 'Labels', I.tag],
+  ['wallpaper', 'Live wallpaper', I.monitor],
+  ['data', 'Backup & data', I.folder],
+  ['keys', 'Shortcuts', I.keyboard],
+];
+function openSettings(tab = 'appearance') { closeMenu(); settingsTab = tab; renderSettings(); }
+function closeSettings() { settingsTab = null; $('#set-root').innerHTML = ''; if (modalCard) renderCardModal(); }
+const toggleHTML = (attr, key, on) => `<label class="switch"><input type="checkbox" ${attr}="${key}" ${on ? 'checked' : ''}><span></span></label>`;
+const row = (title, sub, control) => `<div class="set-row"><div class="lbl"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</div>${control}</div>`;
+const rangeHTML = (key, min, max, step, val, fmt) => `<div class="range"><input type="range" data-range="${key}" min="${min}" max="${max}" step="${step}" value="${val}"><output>${fmt(val)}</output></div>`;
+const RANGE_FMT = { fontScale: v => Math.round(v * 100) + '%', columnWidth: v => v + 'px', radius: v => v + 'px', bgDim: v => Math.round(v * 100) + '%' };
+
+function renderSettings() {
+  const st = state.settings, tab = settingsTab, dark = isDark();
+  let body = '';
+  if (tab === 'appearance') {
+    const bg = st.background;
+    body = `<h3>Appearance</h3><p class="sub">Make TaskBoard look the way you like. Changes apply instantly.</p>
+      ${row('Theme', '', `<div class="seg" style="width:270px">${[['light', 'Light', I.sun], ['dark', 'Dark', I.moon], ['system', 'System', I.monitor]].map(([v, n, ic]) => `<button data-theme-v="${v}" class="${st.theme === v ? 'on' : ''}">${ic}${n}</button>`).join('')}</div>`)}
+      <div class="set-block"><b>Accent color</b><div class="accents">${ACCENTS.map(c => `<button class="sw ${st.accent.toLowerCase() === c ? 'on' : ''}" style="--c:${c}" data-accent="${c}" title="${c}"></button>`).join('')}
+        <label class="color-custom" title="Custom color" style="${ACCENTS.includes(st.accent.toLowerCase()) ? '' : `border:0;background:${st.accent};box-shadow:0 0 0 2px var(--surface),0 0 0 4px ${st.accent}`}">${ACCENTS.includes(st.accent.toLowerCase()) ? I.plus : ''}<input type="color" data-accent-custom value="${st.accent}"></label></div></div>
+      <div class="set-block"><b>Background</b><div class="bgs">
+        ${Object.entries(PRESETS).map(([k, p]) => `<button class="bg-opt ${bg.type === 'preset' && bg.value === k ? 'on' : ''}" data-bg="${k}"><div class="pv" style="background:${p.css(dark)}"></div><span class="nm">${p.name}</span></button>`).join('')}
+        <label class="bg-opt ${bg.type === 'color' ? 'on' : ''}" style="position:relative;cursor:pointer"><div class="pv" style="background:${bg.type === 'color' ? bg.value : 'var(--surface-2)'};color:var(--muted)">${bg.type === 'color' ? '' : I.palette}</div><span class="nm">Solid color</span>
+          <input type="color" data-bg-color value="${bg.type === 'color' ? bg.value : '#334155'}" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+        <button class="bg-opt ${bg.type === 'image' ? 'on' : ''}" data-bg-image><div class="pv" style="${bgImage ? `background-image:url('${bgImage}')` : 'background:var(--surface-2);color:var(--muted)'}">${bgImage ? '' : I.image}</div><span class="nm">${bgImage ? 'My image' : 'Choose image…'}</span></button>
+      </div>
+      ${bg.type === 'image' && bgImage ? `<div class="set-row" style="border:0;padding-bottom:0"><div class="lbl"><b>Dim image</b><small>Darken the picture so cards stay readable</small></div>${rangeHTML('bgDim', 0, .8, .05, st.bgDim, RANGE_FMT.bgDim)}</div>
+        <div style="margin-top:8px"><button class="btn" data-bg-image>${I.image}Change image…</button></div>` : ''}</div>
+      ${row('Frosted glass lists', 'Lists are slightly see-through over the background', toggleHTML('data-toggle', 'glass', st.glass))}`;
+  } else if (tab === 'layout') {
+    body = `<h3>Layout</h3><p class="sub">Tune the density and size of the board.</p>
+      ${row('Card density', 'Compact fits more on screen', `<div class="seg" style="width:230px">${[['comfortable', 'Comfortable'], ['compact', 'Compact']].map(([v, n]) => `<button data-density="${v}" class="${st.density === v ? 'on' : ''}">${n}</button>`).join('')}</div>`)}
+      ${row('Text size', '', rangeHTML('fontScale', .85, 1.3, .05, st.fontScale, RANGE_FMT.fontScale))}
+      ${row('List width', '', rangeHTML('columnWidth', 230, 420, 10, st.columnWidth, RANGE_FMT.columnWidth))}
+      ${row('Corner roundness', '', rangeHTML('radius', 0, 20, 1, st.radius, RANGE_FMT.radius))}
+      ${row('Show completed cards', 'When off, done cards are hidden except in your Done list', toggleHTML('data-toggle', 'showDone', st.showDone))}
+      ${row('Move completed cards to Done', 'Checking off a card moves it to the list marked “Completed list”', toggleHTML('data-toggle', 'autoMoveDone', st.autoMoveDone))}`;
+  } else if (tab === 'windows') {
+    const n = host.native;
+    body = `<h3>Windows & reminders</h3><p class="sub">${n ? 'How TaskBoard runs on your PC and how it reminds you.' : 'These options only work in the installed TaskBoard.exe.'}</p>
+      ${row('Start with Windows', 'Open TaskBoard automatically when you sign in', toggleHTML('data-pref', 'autostart', prefs.autostart))}
+      ${row('Start minimized to tray', 'At sign-in, run quietly in the tray instead of opening the window', toggleHTML('data-pref', 'startMinimized', prefs.startMinimized))}
+      ${row('Keep running when closed', 'The ✕ button hides to the system tray so reminders keep working', toggleHTML('data-pref', 'closeToTray', prefs.closeToTray))}
+      ${row('Reminder notifications', 'Pop up a Windows notification when a card’s reminder time arrives', toggleHTML('data-pref', 'notifications', prefs.notifications))}
+      ${row('Daily summary', 'Once a day, tell me what’s due today and what’s overdue', toggleHTML('data-pref', 'dailySummary', prefs.dailySummary))}
+      ${row('Test it', 'Send a sample notification now', `<button class="btn" data-s="test-notif">${I.bell}Send test</button>`)}
+      ${n ? row('Quit TaskBoard', 'Fully exit (reminders stop until you open it again)', `<button class="btn danger" data-s="quit">Quit</button>`) : ''}`;
+  } else if (tab === 'labels') {
+    body = `<h3>Labels</h3><p class="sub">Color tags you can put on cards. Click a color to change it.</p>
+      ${state.labels.map(l => `<div class="lbl-row"><label class="clr" style="background:${l.color}"><input type="color" data-label-color="${l.id}" value="${l.color}"></label>
+        <input class="input" data-label-name="${l.id}" value="${esc(l.name)}" maxlength="30"><span class="chip" style="--c:${l.color}">${esc(l.name) || '—'}</span>
+        <button class="icon-btn" data-label-del="${l.id}" title="Delete label">${I.trash}</button></div>`).join('')}
+      <button class="btn" data-s="label-add" style="margin-top:6px">${I.plus}Add label</button>`;
+  } else if (tab === 'wallpaper') {
+    const w = wpInfo;
+    if (!host.native) body = `<h3>Live wallpaper</h3><p class="sub">Available in the installed TaskBoard.exe.</p>`;
+    else if (!w) { body = `<h3>Live wallpaper</h3><p class="sub">Checking for Wallpaper Engine…</p>`; loadWpInfo(); }
+    else body = `<h3>Live wallpaper</h3><p class="sub">Show this board as your desktop wallpaper with Wallpaper Engine. It updates within a second whenever you change something here. On the wallpaper, click a card to open it, or click its circle to check it off.</p>
+      ${row('Wallpaper Engine', w.wallpaperEngine ? esc(w.wallpaperEngine) : 'Not found on this PC. You can still save the wallpaper folder and open it in Wallpaper Engine yourself.',
+        w.wallpaperEngine ? `<span class="badge done">${I.tick}Found</span>` : `<span class="badge overdue">Not found</span>`)}
+      ${row('Live link', w.serverRunning ? `Running on localhost:${w.port} (only this PC, protected by a private key)` : `Couldn't start: ${esc(w.serverError || 'unknown error')}`,
+        w.serverRunning ? `<span class="badge done">${I.tick}On</span>` : `<span class="badge overdue">Off</span>`)}
+      ${w.wallpaperEngine ? row(w.installed ? 'Installed ✓' : 'Install wallpaper', w.installed ? 'Listed in Wallpaper Engine as “TaskBoard (live)”. Stays up to date automatically.' : 'Adds “TaskBoard (live)” to your Wallpaper Engine library',
+        `<div style="display:flex;gap:6px">${w.installed ? '' : `<button class="btn" data-s="wp-install">${I.download}Install</button>`}<button class="btn primary" data-s="wp-apply">${I.monitor}${w.installed ? 'Set as wallpaper' : 'Install & set'}</button></div>`) : ''}
+      ${row('Save wallpaper folder', 'For manual setup: in Wallpaper Engine choose “Open Wallpaper → Open from File” and pick index.html in that folder', `<button class="btn" data-s="wp-export">${I.folder}Save…</button>`)}
+      <div class="set-block"><b>Adjusting it</b><div class="hint" style="font-size:.84rem;line-height:1.5">The wallpaper uses your TaskBoard theme, accent color and background. In Wallpaper Engine you can also change its size, position, margins (to leave room for desktop icons), which board it shows, and whether the clock and agenda appear. TaskBoard needs to be running (it can sit in the tray) for the wallpaper to update. When TaskBoard is closed, the wallpaper keeps showing the last saved board.</div></div>`;
+  } else if (tab === 'data') {
+    const cards = state.boards.reduce((a, b) => a + b.lists.reduce((x, l) => x + l.cards.length, 0), 0);
+    body = `<h3>Backup & data</h3><p class="sub">Everything is saved automatically, the moment you make a change.</p>
+      <div class="set-block" style="border:0;padding-top:0"><b>Where your data lives</b><div class="path">${esc(appInfo.dataPath || '')}</div>
+        <div class="hint">${state.boards.length} board${state.boards.length > 1 ? 's' : ''} · ${cards} cards. A daily backup is kept for the last 30 days in the “backups” folder, and damaged files are recovered from backups automatically.</div></div>
+      ${row('Open data folder', 'See data.json and daily backups', `<button class="btn" data-s="open-folder" ${host.native ? '' : 'disabled'}>${I.folder}Open</button>`)}
+      ${row('Export backup', 'Save a copy of all boards to a file', `<button class="btn" data-s="export">${I.download}Export…</button>`)}
+      ${row('Import backup', 'Replace everything with a previously exported file (undo-able)', `<button class="btn" data-s="import" ${host.native ? '' : 'disabled'}>${I.upload}Import…</button>`)}`;
+  } else if (tab === 'keys') {
+    const k = (...ks) => ks.map(x => `<kbd>${x}</kbd>`).join('');
+    body = `<h3>Keyboard shortcuts</h3><p class="sub">Work faster without the mouse.</p><div class="keys">
+      <div>${k('N')}</div><span>New card in the first list</span>
+      <div>${k('/')} ${k('Ctrl', 'F')}</div><span>Search cards</span>
+      <div>${k('A')}</div><span>Open / close the agenda</span>
+      <div>${k('Ctrl', 'Z')}</div><span>Undo</span>
+      <div>${k('Ctrl', 'Y')}</div><span>Redo</span>
+      <div>${k('Enter')}</div><span>Add card (while typing a new card)</span>
+      <div>${k('Shift', 'Enter')}</div><span>New line in a card title</span>
+      <div>${k('Esc')}</div><span>Close dialogs, menus and search</span>
+      <div>${k('1')}…${k('9')}</div><span>Switch to board 1–9</span></div>`;
+  }
+  $('#set-root').innerHTML = `<div class="overlay" data-overlay><div class="modal settings" role="dialog">
+    <nav class="set-nav"><h2>Settings</h2>${TABS.map(([id, n, ic]) => `<button data-tab="${id}" class="${tab === id ? 'on' : ''}">${ic}${n}</button>`).join('')}
+      <div class="ver">TaskBoard ${esc(appInfo.version || '')}</div></nav>
+    <div class="set-body"><button class="icon-btn set-close" data-s="close" title="Close (Esc)">${I.x}</button>${body}</div></div></div>`;
+}
+
+let wpInfo = null, wpLoading = false;
+async function loadWpInfo() {
+  if (wpLoading) return;
+  wpLoading = true;
+  try { wpInfo = await host.call('wallpaperInfo'); } catch (e) { wpInfo = { serverError: e.message }; }
+  wpLoading = false;
+  if (settingsTab === 'wallpaper') renderSettings();
+}
+
+async function setPref(key, val) {
+  prefs[key] = val;
+  try { prefs = Object.assign(prefs, await host.call('setPrefs', { [key]: val }) || {}); }
+  catch (e) { toast('Could not change setting: ' + e.message, null, true); }
+  if (settingsTab) renderSettings();
+}
+
+(function bindSettings() {
+  const root = $('#set-root');
+  root.addEventListener('mousedown', e => { if (e.target.dataset && e.target.dataset.overlay != null) closeSettings(); });
+  root.addEventListener('click', async e => {
+    const t = e.target.closest('button,[data-bg-image]'); if (!t) return;
+    const d = t.dataset;
+    if (d.tab) { settingsTab = d.tab; renderSettings(); }
+    else if (d.themeV) { updateSettings(s => s.theme = d.themeV); renderSettings(); }
+    else if (d.accent) { updateSettings(s => s.accent = d.accent); renderSettings(); }
+    else if (d.bg) { updateSettings(s => s.background = { type: 'preset', value: d.bg }); renderSettings(); }
+    else if (d.bgImage != null) {
+      if (bgImage && state.settings.background.type !== 'image' && !t.classList.contains('btn')) { updateSettings(s => s.background = { type: 'image' }); renderSettings(); return; }
+      try {
+        const url = await host.call('pickImage');
+        if (url) { bgImage = url; updateSettings(s => s.background = { type: 'image' }); renderSettings(); }
+      } catch (err) { toast('Could not use that image: ' + err.message, null, true); }
+    }
+    else if (d.density) { updateSettings(s => s.density = d.density); renderSettings(); }
+    else if (d.labelDel) {
+      const lb = labelById(d.labelDel);
+      commit(s => { s.labels = s.labels.filter(l => l.id !== d.labelDel); for (const b of s.boards) for (const l of b.lists) for (const c of l.cards) c.labels = c.labels.filter(x => x !== d.labelDel); });
+      renderSettings(); toast(`Deleted label “${lb?.name}”`, { label: 'Undo', run: undo });
+    }
+    else switch (d.s) {
+      case 'close': closeSettings(); break;
+      case 'label-add':
+        commit(s => s.labels.push({ id: uid(), name: 'New label', color: LABEL_COLORS[s.labels.length % LABEL_COLORS.length] }));
+        renderSettings();
+        { const inputs = $$('[data-label-name]', root); const last = inputs[inputs.length - 1]; last?.focus(); last?.select(); }
+        break;
+      case 'test-notif':
+        if (!host.native) return toast('Notifications work in the installed app');
+        host.call('testNotification'); toast('Test notification sent — check the bottom-right of your screen'); break;
+      case 'quit': await saveNow(); host.call('quit'); break;
+      case 'open-folder': host.call('openDataFolder'); break;
+      case 'wp-install':
+      case 'wp-apply':
+      case 'wp-export':
+        try {
+          await saveNow();
+          const r = await host.call(d.s === 'wp-install' ? 'installWallpaper' : d.s === 'wp-apply' ? 'applyWallpaper' : 'exportWallpaper');
+          if (r == null) return;
+          toast(d.s === 'wp-apply' ? 'Wallpaper set — check your desktop ✨' : d.s === 'wp-install' ? 'Installed into Wallpaper Engine ✓' : 'Wallpaper folder saved ✓');
+          wpInfo = null; renderSettings();
+        } catch (err) { toast('Wallpaper: ' + err.message, null, true); }
+        break;
+      case 'export':
+        try { const p = await host.call('exportData', state); if (p) toast('Backup exported ✓'); } catch (err) { toast('Export failed: ' + err.message, null, true); }
+        break;
+      case 'import': {
+        try {
+          const text = await host.call('importData'); if (!text) return;
+          const data = JSON.parse(text);
+          if (!data || !Array.isArray(data.boards)) throw new Error('That file is not a TaskBoard backup.');
+          if (!(await confirmDlg('Replace all boards?', 'Your current boards will be replaced by the imported backup. You can undo with Ctrl+Z.', 'Import'))) return;
+          past.push(JSON.stringify(state)); future = [];
+          state = normalize(data);
+          scheduleSave(); applySettings(); render(); renderSettings();
+          toast('Backup imported ✓', { label: 'Undo', run: undo });
+        } catch (err) { toast('Import failed: ' + err.message, null, true); }
+        break;
+      }
+    }
+  });
+  root.addEventListener('input', e => {
+    const t = e.target, d = t.dataset;
+    if (d.range) {
+      const v = +t.value;
+      updateSettings(s => s[d.range] = v, d.range === 'columnWidth' || d.range === 'fontScale');
+      t.nextElementSibling.textContent = RANGE_FMT[d.range](v);
+    } else if (d.accentCustom != null) { updateSettings(s => s.accent = t.value, false); }
+    else if (d.bgColor != null) { updateSettings(s => s.background = { type: 'color', value: t.value }, false); }
+    else if (d.labelName) { commit(s => { const l = s.labels.find(x => x.id === d.labelName); if (l) l.name = t.value; }, { key: 'lbn' + d.labelName }); t.nextElementSibling.textContent = t.value || '—'; }
+    else if (d.labelColor) {
+      commit(s => { const l = s.labels.find(x => x.id === d.labelColor); if (l) l.color = t.value; }, { key: 'lbc' + d.labelColor });
+      t.parentElement.style.background = t.value;
+      t.closest('.lbl-row').querySelector('.chip').style.setProperty('--c', t.value);
+    }
+  });
+  root.addEventListener('change', e => {
+    const t = e.target, d = t.dataset;
+    if (d.toggle) updateSettings(s => s[d.toggle] = t.checked);
+    else if (d.pref) setPref(d.pref, t.checked);
+    else if (d.accentCustom != null || d.bgColor != null) renderSettings();
+  });
+})();
+
+/* =====================================================================
+   Global events
+   ===================================================================== */
+document.addEventListener('click', e => {
+  if (e.target.closest('#cm-root,#set-root,#dlg-root,.menu')) return;
+  const actEl = e.target.closest('[data-act]');
+  const act = actEl && actEl.dataset.act;
+  const cardEl = e.target.closest('[data-card]');
+  const listEl = e.target.closest('.list');
+  switch (act) {
+    case 'toggle-done': e.stopPropagation(); toggleDone(cardEl.dataset.card); return;
+    case 'add-card': openComposer(listEl.dataset.list); return;
+    case 'composer-add': submitComposer(true); return;
+    case 'composer-cancel': closeComposer(); return;
+    case 'list-menu': listMenu(actEl, listEl.dataset.list); return;
+    case 'rename-list': startRenameList(actEl, listEl.dataset.list); return;
+    case 'add-list': addingList = true; composer = null; renderBoard(); $('#board').scrollLeft = $('#board').scrollWidth; return;
+    case 'add-list-cancel': addingList = false; renderBoard(); return;
+    case 'board-menu': boardMenu(actEl); return;
+    case 'agenda': toggleAgenda(act === 'agenda' && actEl.id === 'agenda-btn' ? undefined : true); return;
+    case 'agenda-close': toggleAgenda(false); return;
+    case 'settings': openSettings(); return;
+    case 'undo': undo(); return;
+    case 'clear-search': e.preventDefault(); setSearch(''); return;
+  }
+  if (cardEl) openCard(cardEl.dataset.card);
+});
+document.addEventListener('mousedown', e => {
+  if (e.target.closest('[data-act="composer-add"],[data-act="composer-cancel"]')) e.preventDefault();
+});
+
+function setSearch(q) {
+  searchQ = q;
+  $('#search').value = q;
+  $('#search-wrap').classList.toggle('has', !!q);
+  renderBoard();
+}
+$('#search').addEventListener('input', e => setSearch(e.target.value));
+$('#search').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); setSearch(''); e.target.blur(); } });
+
+document.addEventListener('keydown', e => {
+  const typing = e.target.matches && e.target.matches('input,textarea,select,[contenteditable]');
+  const ctrl = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  if (e.key === 'Escape') {
+    if (menuEl) return closeMenu();
+    if ($('#dlg-root').children.length) return;
+    if (settingsTab) return closeSettings();
+    if (modalCard) return closeCardModal();
+    if (agendaOpen) return toggleAgenda(false);
+    if (searchQ) return setSearch('');
+    return;
+  }
+  if (ctrl && k === 'f') { e.preventDefault(); $('#search').focus(); $('#search').select(); return; }
+  if (typing) return;
+  if (ctrl && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+  if (ctrl && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
+  if (ctrl || e.altKey) return;
+  if ($('#dlg-root').children.length || settingsTab || modalCard) return;
+  if (k === '/') { e.preventDefault(); $('#search').focus(); }
+  else if (k === 'n') { e.preventDefault(); const l = board().lists.find(x => !x.doneList) || board().lists[0]; if (l) openComposer(l.id); }
+  else if (k === 'a') { e.preventDefault(); toggleAgenda(); }
+  else if (/^[1-9]$/.test(k) && state.boards[+k - 1]) switchBoard(state.boards[+k - 1].id);
+});
+
+/* keep dates fresh (overdue / today) */
+setInterval(() => {
+  if (!state || drag) return;
+  const a = document.activeElement;
+  if (a && a.closest('#board') && a.matches('input,textarea')) { renderTop(); return; }
+  render();
+}, 60000);
+
+/* =====================================================================
+   Boot
+   ===================================================================== */
+async function init() {
+  $('#undo-btn').innerHTML = I.undo;
+  $('#settings-btn').innerHTML = I.gear;
+  let r = {};
+  try { r = await host.call('init') || {}; } catch (e) { toast('Could not load data: ' + e.message, null, true); }
+  appInfo = r; prefs = r.prefs || {}; bgImage = r.bgImage || null;
+  let data = null;
+  try { data = r.data ? JSON.parse(r.data) : null; } catch { data = null; }
+  state = normalize(data || defaultState());
+  applySettings();
+  render();
+  if (!data) saveNow();
+  if (r.openCard) openCard(r.openCard);
+  host.on('openCard', id => { const f = findCard(id); if (!f) return; if (f.board.id !== state.activeBoard) switchBoard(f.board.id); openCard(id); });
+  host.on('prefs', p => { prefs = p || prefs; if (settingsTab) renderSettings(); });
+  host.on('shown', () => { if (!drag) render(); });
+  host.on('toggleDone', id => { if (findCard(id)) toggleDone(id); });
+}
+init();
+</script>
+</body>
+</html>

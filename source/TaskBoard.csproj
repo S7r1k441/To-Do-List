@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AssemblyName>TaskBoard</AssemblyName>
+    <RootNamespace>TaskBoard</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Version>1.0.0</Version>
+    <Product>TaskBoard</Product>
+    <Company>TaskBoard</Company>
+    <Description>TaskBoard - personal kanban to-do board</Description>
+
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- WebView2 package ships an unused WPF assembly that triggers a benign WindowsBase version warning -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="web\index.html" LogicalName="index.html" />
+    <EmbeddedResource Include="web\wallpaper.html" LogicalName="wallpaper.html" />
+    <EmbeddedResource Include="web\wallpaper.project.json" LogicalName="wallpaper.project.json" />
+    <EmbeddedResource Include="web\wallpaper-preview.jpg" LogicalName="wallpaper.preview.jpg" Condition="Exists('web\wallpaper-preview.jpg')" />
+  </ItemGroup>
+
+</Project>

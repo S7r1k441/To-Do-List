@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaskBoard Wallpaper</title>
+<script src="config.js"></script>
+<style>
+:root{
+  --accent:#6366f1; --radius:12px; --col-w:290px;
+  --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+}
+html[data-theme=dark]{
+  --base:#111217; --text:#e9eaf0; --muted:#a0a3b1; --faint:#6c6f7e;
+  --list-bg:rgba(24,25,32,.74); --list-solid:#1c1d24;
+  --card-bg:#2a2b35; --card-hover:#32333e;
+  --border:rgba(255,255,255,.075); --border-strong:rgba(255,255,255,.14);
+  --chip-bg:rgba(255,255,255,.07); --hover:rgba(255,255,255,.06);
+  --shadow:0 1px 1px rgba(0,0,0,.3),0 2px 6px rgba(0,0,0,.18);
+  --glass:rgba(20,21,28,.62); --text-shadow:0 2px 12px rgba(0,0,0,.45);
+}
+html[data-theme=light]{
+  --base:#eceef3; --text:#1b1d26; --muted:#5b6071; --faint:#9499a8;
+  --list-bg:rgba(243,244,248,.84); --list-solid:#f1f2f6;
+  --card-bg:#ffffff; --card-hover:#fbfbfe;
+  --border:rgba(20,25,45,.085); --border-strong:rgba(20,25,45,.16);
+  --chip-bg:rgba(20,25,45,.06); --hover:rgba(20,25,45,.05);
+  --shadow:0 1px 1px rgba(20,25,50,.06),0 1px 4px rgba(20,25,50,.07);
+  --glass:rgba(255,255,255,.66); --text-shadow:0 2px 12px rgba(255,255,255,.5);
+}
+html.no-glass{--list-bg:var(--list-solid)}
+html.no-glass .list,html.no-glass .panel{backdrop-filter:none}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;color:var(--text);background:var(--base);
+  -webkit-font-smoothing:antialiased;user-select:none;cursor:default;font-size:14px}
+svg{width:16px;height:16px;flex:none}
+#bg{position:fixed;inset:0;background:var(--base)}
+#bg::after{content:"";position:absolute;inset:0;background:var(--bg-dim,transparent)}
+#frame{position:fixed;overflow:hidden}
+#zoom{transform-origin:top left;display:flex;flex-direction:column;gap:18px}
+
+/* header */
+#head{display:flex;align-items:flex-end;gap:28px}
+.clock{text-shadow:var(--text-shadow)}
+.clock .time{font-family:"Segoe UI Variable Display","Segoe UI",sans-serif;font-size:64px;font-weight:600;line-height:1;letter-spacing:-.02em}
+.clock .date{font-size:17px;font-weight:500;color:var(--muted);margin-top:6px}
+.summary{display:flex;flex-direction:column;gap:8px;padding-bottom:4px}
+.summary .hello{font-size:17px;font-weight:600;text-shadow:var(--text-shadow)}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{border-radius:99px;padding:4px 11px;font-size:12.5px;font-weight:650;display:inline-flex;align-items:center;gap:6px;background:var(--glass);backdrop-filter:blur(12px);border:1px solid var(--border)}
+.pill svg{width:13px;height:13px}
+.pill.red{color:color-mix(in srgb,var(--bad) 85%,var(--text));background:color-mix(in srgb,var(--bad) 22%,var(--glass))}
+.pill.amber{color:color-mix(in srgb,var(--warn) 80%,var(--text));background:color-mix(in srgb,var(--warn) 22%,var(--glass))}
+.pill.ok{color:color-mix(in srgb,var(--ok) 80%,var(--text))}
+.pill.board{font-weight:700}
+.pill.offline{color:var(--muted)}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+.pill.offline .dot{background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 25%,transparent)}
+
+/* board */
+#content{flex:1;min-height:0;display:flex;gap:16px;align-items:flex-start}
+#lists{display:flex;gap:12px;align-items:flex-start;height:100%;min-width:0;overflow:hidden}
+.list{flex:0 0 var(--col-w);width:var(--col-w);max-height:100%;display:flex;flex-direction:column;background:var(--list-bg);
+  border:1px solid var(--border);border-radius:var(--radius);backdrop-filter:blur(16px) saturate(1.3);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.list::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--list-color,transparent)}
+.list-head{display:flex;align-items:center;gap:8px;padding:11px 12px 7px 14px}
+.list-title{flex:1;margin:0;font-size:13.5px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.count{font-size:11px;font-weight:600;color:var(--muted);background:var(--chip-bg);padding:1px 8px;border-radius:99px}
+.done-tag{color:var(--ok);display:grid}
+.done-tag svg{width:14px;height:14px}
+.list-cards{flex:1 1 auto;overflow-y:auto;padding:4px 8px 10px;display:flex;flex-direction:column;gap:8px;min-height:6px;
+  -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),transparent)}
+.list-cards::-webkit-scrollbar{display:none}
+.list-empty{font-size:12px;color:var(--faint);text-align:center;padding:10px 0 6px;border:1.5px dashed var(--border);border-radius:9px}
+.card{background:var(--card-bg);border:1px solid var(--border);border-radius:calc(var(--radius) - 3px);padding:10px 12px;box-shadow:var(--shadow);cursor:pointer;transition:background .12s,border-color .12s}
+.card:hover{background:var(--card-hover);border-color:var(--border-strong)}
+.card.prio-high{box-shadow:inset 3px 0 0 var(--bad),var(--shadow)}
+.card.prio-med{box-shadow:inset 3px 0 0 var(--warn),var(--shadow)}
+.card.prio-low{box-shadow:inset 3px 0 0 #3b82f6,var(--shadow)}
+.card-labels{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px}
+.card-main{display:flex;gap:9px;align-items:flex-start}
+.card-title{flex:1;line-height:1.38;word-break:break-word;white-space:pre-wrap;font-size:13px}
+.card.is-done{opacity:.78}
+.card.is-done .card-title{text-decoration:line-through;color:var(--muted)}
+.badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;padding-left:27px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:500;color:var(--muted);padding:2px 6px;border-radius:6px;background:var(--chip-bg)}
+.badge svg{width:12px;height:12px}
+.badge.overdue{background:color-mix(in srgb,var(--bad) 18%,transparent);color:color-mix(in srgb,var(--bad) 85%,var(--text));font-weight:600}
+.badge.today{background:color-mix(in srgb,var(--warn) 20%,transparent);color:color-mix(in srgb,var(--warn) 80%,var(--text));font-weight:600}
+.badge.soon{background:color-mix(in srgb,var(--accent) 16%,transparent);color:color-mix(in srgb,var(--accent) 70%,var(--text))}
+.badge.done{background:color-mix(in srgb,var(--ok) 18%,transparent);color:color-mix(in srgb,var(--ok) 80%,var(--text))}
+.badge.plain{background:none;padding:2px 3px}
+.chip{display:inline-flex;align-items:center;font-size:10.5px;font-weight:650;padding:2px 9px;border-radius:99px;background:color-mix(in srgb,var(--c) 20%,transparent);color:color-mix(in srgb,var(--c) 72%,var(--text))}
+.compact .chip{font-size:0;padding:0;width:30px;height:6px}
+.compact .card{padding:6px 10px}
+.compact .list-cards{gap:5px}
+.compact .badges{margin-top:4px}
+.check{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--faint);display:grid;place-items:center;background:none;padding:0;color:transparent;margin-top:1px;cursor:pointer;transition:all .15s}
+.check svg{width:11px;height:11px}
+.check:hover{border-color:var(--ok);color:color-mix(in srgb,var(--ok) 70%,transparent)}
+.check.on{background:var(--ok);border-color:var(--ok);color:#fff}
+
+/* agenda */
+.panel{flex:0 0 300px;width:300px;max-height:100%;overflow:hidden;display:flex;flex-direction:column;background:var(--list-bg);border:1px solid var(--border);
+  border-radius:var(--radius);backdrop-filter:blur(16px) saturate(1.3);box-shadow:var(--shadow)}
+.panel h2{margin:0;padding:13px 16px 4px;font-size:14px;display:flex;align-items:center;gap:8px}
+.panel h2 svg{color:var(--accent)}
+.ag-body{overflow-y:auto;padding:0 8px 12px;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),transparent)}
+.ag-body::-webkit-scrollbar{display:none}
+.ag-group h3{display:flex;align-items:center;margin:12px 8px 4px;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.ag-group h3 span{margin-left:auto}
+.ag-group.overdue h3{color:var(--bad)}
+.ag-item{display:flex;gap:10px;align-items:flex-start;padding:7px 8px;border-radius:9px;cursor:pointer}
+.ag-item:hover{background:var(--hover)}
+.ag-t{flex:1;min-width:0}
+.ag-title{font-size:12.5px;line-height:1.35;word-break:break-word}
+.ag-meta{font-size:10.5px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-empty{text-align:center;color:var(--muted);padding:26px 14px;font-size:13px}
+.ag-empty .big{font-size:28px;margin-bottom:4px}
+.more{font-size:11px;color:var(--faint);padding:2px 8px}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div id="frame"><div id="zoom">
+  <header id="head"></header>
+  <div id="content"><div id="lists"></div><aside class="panel" id="agenda"></aside></div>
+</div></div>
+<script>
+'use strict';
+const CFG = window.TASKBOARD_CONFIG || null;
+const DEMO = !CFG || location.search.includes('demo');
+const BASE = CFG ? `http://localhost:${CFG.port}` : '';
+const TOKEN = CFG ? encodeURIComponent(CFG.token) : '';
+const CACHE_KEY = 'taskboard-wallpaper-cache';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad2 = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const ico = (p, sw = 2) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const I = {
+  check: ico('<path d="M20 6 9 17l-5-5"/>', 3.2),
+  calendar: ico('<rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/>'),
+  clock: ico('<circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3 2"/>'),
+  bell: ico('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>'),
+  checklist: ico('<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8M13 12h8M13 18h8"/>'),
+  text: ico('<path d="M4 6h16M4 12h16M4 18h10"/>'),
+  flag: ico('<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>'),
+  done: ico('<circle cx="12" cy="12" r="9.5"/><path d="m8 12 3 3 5-6"/>'),
+  agenda: ico('<rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>', 2.2),
+  board: ico('<rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M9 3v18M15 3v10"/>'),
+};
+const PRESETS = {
+  aurora: d => `radial-gradient(1100px 650px at 5% -10%, color-mix(in srgb, var(--accent) ${d ? 42 : 30}%, transparent), transparent 62%), radial-gradient(900px 600px at 105% 110%, color-mix(in srgb, #ec4899 ${d ? 26 : 20}%, transparent), transparent 62%), var(--base)`,
+  plain: () => 'var(--base)',
+  ocean: d => d ? 'linear-gradient(135deg,#0f2027,#203a43 50%,#2c5364)' : 'linear-gradient(135deg,#a1c4fd,#c2e9fb)',
+  sunset: d => d ? 'linear-gradient(135deg,#2a1633,#6b2d5c 55%,#b8494b)' : 'linear-gradient(135deg,#ffecd2,#fcb69f)',
+  forest: d => d ? 'linear-gradient(135deg,#0b2420,#163832 50%,#235347)' : 'linear-gradient(135deg,#e3f7c5,#9fdcb0)',
+  grape: d => d ? 'linear-gradient(135deg,#170f2e,#35205f 55%,#5b2a86)' : 'linear-gradient(135deg,#e0c3fc,#8ec5fc)',
+  ember: d => d ? 'linear-gradient(135deg,#1c1917,#44261a 55%,#7c2d12)' : 'linear-gradient(135deg,#fdfbf7,#f3d9c4)',
+  slate: d => d ? 'linear-gradient(160deg,#1e293b,#0f172a)' : 'linear-gradient(160deg,#f8fafc,#cbd5e1)',
+};
+
+/* ---------- Wallpaper Engine user properties ---------- */
+const P = { board: 0, scale: 100, align: 'center', top: 6, bottom: 7, side: 6, clock: true, agenda: true, done: true, bg: 'app', bgcolor: '#121217' };
+const weColor = v => '#' + String(v).split(' ').map(x => pad2(Math.round(Math.min(1, Math.max(0, +x)) * 255).toString(16))).join('');
+window.wallpaperPropertyListener = {
+  applyUserProperties(props) {
+    for (const [k, o] of Object.entries(props)) {
+      if (!k.startsWith('tb_') || !o) continue;
+      const key = k.slice(3);
+      P[key] = key === 'bgcolor' ? weColor(o.value) : o.value;
+    }
+    render();
+  },
+};
+
+/* ---------- data ---------- */
+let state = null, version = 0, bgv = 0, online = false, everOnline = false;
+try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (c && c.data) { state = c.data; bgv = c.bg || 0; } } catch { }
+
+function demoState() {
+  const t = new Date(), day = n => ymd(addDays(t, n));
+  const c = (title, x = {}) => ({ id: Math.random().toString(36).slice(2), title, desc: '', due: '', remind: 0, labels: [], checklist: [], priority: 'none', done: false, ...x });
+  return {
+    activeBoard: 'b', labels: [{ id: 'w', name: 'Work', color: '#3b82f6' }, { id: 'p', name: 'Personal', color: '#22c55e' }, { id: 'u', name: 'Urgent', color: '#ef4444' }, { id: 'i', name: 'Idea', color: '#8b5cf6' }],
+    settings: { theme: 'dark', accent: '#6366f1', background: { type: 'preset', value: 'aurora' }, columnWidth: 290, radius: 12, fontScale: 1, glass: true, density: 'comfortable' },
+    boards: [{ id: 'b', name: 'My Tasks', lists: [
+      { id: 'l1', name: 'To Do', color: '#6366f1', cards: [
+        c('Send the project update', { labels: ['w', 'u'], due: day(0) + 'T15:00', priority: 'high' }),
+        c('Book dentist appointment', { labels: ['p'], due: day(1) }),
+        c('Plan weekend trip', { labels: ['p'], checklist: [{ done: true }, { done: false }, { done: false }], desc: 'x' }),
+      ] },
+      { id: 'l2', name: 'In Progress', color: '#f59e0b', cards: [
+        c('Redesign landing page', { labels: ['w'], due: day(3), checklist: [{ done: true }, { done: true }, { done: false }] }),
+        c('Read "Deep Work"', { labels: ['i'] }),
+      ] },
+      { id: 'l3', name: 'Done', color: '#22c55e', doneList: true, cards: [c('Pay rent', { done: true, labels: ['p'] }), c('Renew passport', { done: true })] },
+    ] }],
+  };
+}
+if (DEMO && !state) state = demoState();
+
+function cacheState() { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ data: state, bg: bgv })); } catch { } }
+
+async function poll() {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 4000);
+  try {
+    const r = await fetch(`${BASE}/state?t=${TOKEN}&v=${version}&bg=${bgv}`, { cache: 'no-store', signal: ctl.signal });
+    if (r.status === 200) {
+      const j = await r.json();
+      version = j.version; bgv = j.bg;
+      if (j.data) { state = j.data; cacheState(); }
+      online = everOnline = true;
+      render();
+    } else if (r.status === 204) {
+      if (!online) { online = everOnline = true; render(); }
+    } else throw new Error('HTTP ' + r.status);
+  } catch {
+    if (online || !everOnline) { online = false; version = 0; renderHead(); }
+  } finally {
+    clearTimeout(timer);
+    setTimeout(poll, online ? 1000 : 3000);
+  }
+}
+function send(path, cardId) {
+  if (DEMO) return;
+  fetch(`${BASE}/${path}?t=${TOKEN}&card=${encodeURIComponent(cardId)}`, { cache: 'no-store' }).catch(() => { });
+}
+
+/* ---------- helpers mirroring the app ---------- */
+const labelById = id => (state.labels || []).find(l => l.id === id);
+function parseDue(s) {
+  const [date, time] = s.split('T');
+  const [y, m, d] = date.split('-').map(Number);
+  const [h, mi] = time ? time.split(':').map(Number) : [0, 0];
+  return new Date(y, m - 1, d, h, mi);
+}
+const hasTime = c => c.due.includes('T');
+const dueEnd = c => { const d = parseDue(c.due); return hasTime(c) ? d : new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59); };
+function dueStatus(c) {
+  if (!c.due) return '';
+  if (c.done) return 'done';
+  const now = new Date(), d = parseDue(c.due);
+  if (dueEnd(c) < now) return 'overdue';
+  if (startOfDay(d).getTime() === startOfDay(now).getTime()) return 'today';
+  if (d - now < 2 * 864e5) return 'soon';
+  return '';
+}
+function dayWord(d) {
+  const today = startOfDay(new Date()), diff = Math.round((startOfDay(d) - today) / 864e5);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff === -1) return 'Yesterday';
+  if (diff > 1 && diff < 7) return d.toLocaleDateString(undefined, { weekday: 'long' });
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+const fmtTime = d => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const fmtDue = c => hasTime(c) ? `${dayWord(parseDue(c.due))}, ${fmtTime(parseDue(c.due))}` : dayWord(parseDue(c.due));
+function allOpenDue() {
+  const out = [];
+  for (const b of state.boards || []) for (const l of b.lists || []) for (const c of l.cards || [])
+    if (c.due && !c.done) out.push({ b, l, c });
+  return out.sort((x, y) => parseDue(x.c.due) - parseDue(y.c.due));
+}
+function shownBoard() {
+  const boards = state.boards || [];
+  return (P.board > 0 && boards[P.board - 1]) || boards.find(b => b.id === state.activeBoard) || boards[0];
+}
+
+/* ---------- rendering ---------- */
+function applyLook() {
+  const st = state.settings || {}, root = document.documentElement;
+  const dark = st.theme === 'dark' || (st.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+  root.dataset.theme = dark ? 'dark' : 'light';
+  root.style.setProperty('--accent', st.accent || '#6366f1');
+  root.style.setProperty('--radius', (st.radius ?? 12) + 'px');
+  root.style.setProperty('--col-w', (st.columnWidth || 290) + 'px');
+  root.classList.toggle('compact', st.density === 'compact');
+  root.classList.toggle('no-glass', st.glass === false);
+  const bg = st.background || { type: 'preset', value: 'aurora' };
+  let css, dim = 'transparent';
+  if (P.bg === 'color') css = P.bgcolor;
+  else if (bg.type === 'color') css = bg.value;
+  else if (bg.type === 'image' && bgv && !DEMO) { css = `center / cover no-repeat url("${BASE}/background?t=${TOKEN}&v=${bgv}"), var(--base)`; dim = `rgba(0,0,0,${st.bgDim ?? .25})`; }
+  else css = (PRESETS[bg.value] || PRESETS.aurora)(dark);
+  const bgEl = $('#bg');
+  if (bgEl.dataset.css !== css) { bgEl.style.background = css; bgEl.dataset.css = css; }
+  root.style.setProperty('--bg-dim', dim);
+}
+
+function layout() {
+  const W = innerWidth, H = innerHeight, s = (P.scale / 100) * ((state.settings || {}).fontScale || 1);
+  const f = $('#frame'), z = $('#zoom');
+  const top = H * P.top / 100, bottom = H * P.bottom / 100, side = W * P.side / 100;
+  Object.assign(f.style, { top: top + 'px', bottom: bottom + 'px', left: side + 'px', right: side + 'px' });
+  const fw = W - 2 * side, fh = H - top - bottom;
+  Object.assign(z.style, { width: fw / s + 'px', height: fh / s + 'px', transform: `scale(${s})` });
+  const j = { left: 'flex-start', center: 'center', right: 'flex-end' }[P.align] || 'center';
+  $('#head').style.justifyContent = j;
+  $('#content').style.justifyContent = j;
+}
+
+function renderHead() {
+  if (!state) return;
+  const now = new Date();
+  let overdue = 0, today = 0;
+  for (const { c } of allOpenDue()) { const s = dueStatus(c); if (s === 'overdue') overdue++; else if (s === 'today') today++; }
+  const h = now.getHours(), greet = h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  const b = shownBoard();
+  const status = DEMO ? '' : online
+    ? `<span class="pill" title="Live — synced with TaskBoard"><span class="dot"></span>Live</span>`
+    : `<span class="pill offline" title="Open TaskBoard to sync"><span class="dot"></span>${everOnline ? 'TaskBoard closed — showing last saved' : 'Waiting for TaskBoard…'}</span>`;
+  $('#head').innerHTML =
+    (P.clock ? `<div class="clock"><div class="time">${fmtTime(now)}</div><div class="date">${now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</div></div>` : '') +
+    `<div class="summary"><div class="hello">${greet}${overdue + today ? '' : ' — all clear ✨'}</div><div class="pills">
+      ${b ? `<span class="pill board">${I.board}${esc(b.name)}</span>` : ''}
+      ${overdue ? `<span class="pill red">${I.clock}${overdue} overdue</span>` : ''}
+      ${today ? `<span class="pill amber">${I.calendar}${today} due today</span>` : ''}
+      ${status}</div></div>`;
+}
+
+function cardHTML(c) {
+  const labels = (c.labels || []).map(labelById).filter(Boolean);
+  const st = dueStatus(c), cl = c.checklist || [], clDone = cl.filter(i => i.done).length;
+  const badges = [];
+  if (c.due) badges.push(`<span class="badge ${st}">${st === 'overdue' ? I.clock : I.calendar}${esc(fmtDue(c))}</span>`);
+  if (c.due && c.remind >= 0 && !c.done) badges.push(`<span class="badge plain">${I.bell}</span>`);
+  if ((c.desc || '').trim()) badges.push(`<span class="badge plain">${I.text}</span>`);
+  if (cl.length) badges.push(`<span class="badge ${clDone === cl.length ? 'done' : ''}">${I.checklist}${clDone}/${cl.length}</span>`);
+  if (c.priority === 'high') badges.push(`<span class="badge overdue">${I.flag}High</span>`);
+  return `<article class="card ${c.done ? 'is-done' : ''} prio-${c.priority || 'none'}" data-card="${esc(c.id)}">
+    ${labels.length ? `<div class="card-labels">${labels.map(l => `<span class="chip" style="--c:${esc(l.color)}">${esc(l.name)}</span>`).join('')}</div>` : ''}
+    <div class="card-main"><span class="check ${c.done ? 'on' : ''}" data-toggle title="${c.done ? 'Mark not done' : 'Mark complete'}">${I.check}</span><div class="card-title">${esc(c.title) || '<i style="opacity:.5">(untitled)</i>'}</div></div>
+    ${badges.length ? `<div class="badges">${badges.join('')}</div>` : ''}</article>`;
+}
+
+function renderBoard() {
+  const b = shownBoard(), el = $('#lists');
+  const scrolls = {};
+  el.querySelectorAll('.list-cards').forEach(x => scrolls[x.dataset.list] = x.scrollTop);
+  el.innerHTML = !b ? '' : (b.lists || []).map(l => {
+    const showDone = P.done || l.doneList;
+    const cards = (l.cards || []).filter(c => showDone || !c.done);
+    const count = l.doneList ? l.cards.length : l.cards.filter(c => !c.done).length;
+    return `<section class="list" style="--list-color:${esc(l.color) || 'transparent'}">
+      <header class="list-head"><h2 class="list-title">${esc(l.name)}</h2>${l.doneList ? `<span class="done-tag">${I.done}</span>` : ''}<span class="count">${count}</span></header>
+      <div class="list-cards" data-list="${esc(l.id)}">${cards.map(cardHTML).join('') || '<div class="list-empty">Nothing here</div>'}</div></section>`;
+  }).join('');
+  el.querySelectorAll('.list-cards').forEach(x => { if (scrolls[x.dataset.list]) x.scrollTop = scrolls[x.dataset.list]; });
+}
+
+function renderAgenda() {
+  const panel = $('#agenda');
+  panel.style.display = P.agenda ? '' : 'none';
+  if (!P.agenda) return;
+  const now = new Date(), today = startOfDay(now);
+  const groups = [['overdue', 'Overdue', []], ['today', 'Today', []], ['tomorrow', 'Tomorrow', []], ['week', 'Next 7 days', []]];
+  const g = Object.fromEntries(groups.map(x => [x[0], x[2]]));
+  for (const it of allOpenDue()) {
+    const diff = Math.round((startOfDay(parseDue(it.c.due)) - today) / 864e5);
+    if (dueEnd(it.c) < now) g.overdue.push(it);
+    else if (diff === 0) g.today.push(it);
+    else if (diff === 1) g.tomorrow.push(it);
+    else if (diff < 8) g.week.push(it);
+  }
+  const multi = (state.boards || []).length > 1, LIMIT = 6;
+  const body = groups.filter(x => x[2].length).map(([k, name, items]) => `<div class="ag-group ${k}"><h3>${name}<span>${items.length}</span></h3>
+    ${items.slice(0, LIMIT).map(({ b, l, c }) => `<div class="ag-item" data-card="${esc(c.id)}"><span class="check" data-toggle title="Mark complete">${I.check}</span>
+      <div class="ag-t"><div class="ag-title">${esc(c.title) || '(untitled)'}</div><div class="ag-meta">${k === 'today' || k === 'tomorrow' ? (hasTime(c) ? fmtTime(parseDue(c.due)) : 'All day') : esc(fmtDue(c))} · ${esc(multi ? b.name + ' › ' : '')}${esc(l.name)}</div></div></div>`).join('')}
+    ${items.length > LIMIT ? `<div class="more">+${items.length - LIMIT} more</div>` : ''}</div>`).join('');
+  panel.innerHTML = `<h2>${I.agenda}Agenda</h2><div class="ag-body">${body || '<div class="ag-empty"><div class="big">🌤️</div>Nothing due this week</div>'}</div>`;
+}
+
+function render() {
+  if (!state) { $('#head').innerHTML = `<div class="summary"><div class="hello">Waiting for TaskBoard…</div></div>`; return; }
+  applyLook(); layout(); renderHead(); renderBoard(); renderAgenda();
+}
+
+/* ---------- interaction ---------- */
+document.addEventListener('click', e => {
+  const cardEl = e.target.closest('[data-card]');
+  if (!cardEl || !state) return;
+  const id = cardEl.dataset.card;
+  if (e.target.closest('[data-toggle]')) {
+    for (const b of state.boards) for (const l of b.lists) for (const c of l.cards) if (c.id === id) c.done = !c.done;
+    render();
+    send('toggle', id);
+  } else send('open', id);
+});
+
+addEventListener('resize', () => state && layout());
+let lastMinute = -1;
+setInterval(() => {
+  const m = new Date().getMinutes();
+  if (m !== lastMinute && state) { lastMinute = m; renderHead(); renderBoard(); renderAgenda(); }
+}, 1000);
+
+render();
+if (!DEMO) poll();
+</script>
+</body>
+</html>
